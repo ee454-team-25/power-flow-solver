@@ -2,4 +2,4 @@
 
 ## Power System Analysis
 
-This application analyzes a 14-bus power system and solves it usign the newton-Raphson method.
+This application analyzes a 14-bus power system and solves it using the Newton-Raphson method.
