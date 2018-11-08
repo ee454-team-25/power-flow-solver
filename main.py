@@ -14,38 +14,51 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_workbook', default='Data.xlsx', help='An Excel workbook containing input data.')
     parser.add_argument('--line_data_worksheet', default='Line data', help='The worksheet containing line data.')
-    parser.add_argument('--num_buses', default=14, help='The number of buses in the system.')
     return parser.parse_args()
 
 
-def create_admittance_matrix(ws, num_buses):
+def create_admittance_matrix(ws):
     """Creates an admittance matrix from an input worksheet.
 
     Each row is expected to contain the following data:
-        - column 1: source/destination bus (in the format <source>-<destination>)
-        - column 2: R total (pu)
-        - column 3: X total (pu)
-        - column 4: B total (pu)
-        - column 5: F max (MVA)
+        - column 1: source bus
+        - column 2: destination bus
+        - column 3: R total (pu)
+        - column 4: X total (pu)
+        - column 5: B total (pu)
+        - column 6: F max (MVA)
+
+    Furthermore, it is expected that the destination bus will always be greater than the source bus. This constraint
+    ensures that line data is not duplicated.
 
     Args:
         ws: The worksheet containing line data.
-        num_buses: The number of buses in the system.
 
     Returns:
         A square matrix containing line-to-line admittances.
     """
-    admittances = numpy.zeros((num_buses, num_buses))
-    for row in ws.iter_rows(row_offset=1):
-        srcdst = row[0].value
-        rtotal = row[1].value
-        # xtotal = row[2].value
-        # btotal = row[3].value
-        # fmax = row[4].value
+    n = ws.max_row - 1  # skip the header row
+    admittances = numpy.zeros((n, n)) * 1j  # multiply by 1j to make values complex
 
-        # TODO(kjiwa): Compute the admittance correctly.
-        src, dst = [int(i) for i in srcdst.split('-')]
-        admittances[src - 1][dst - 1] = rtotal
+    # Compute matrix entries.
+    for row in ws.iter_rows(row_offset=1):
+        src = row[0].value - 1
+        dst = row[1].value - 1
+        rtotal = row[2].value
+        xtotal = row[3].value
+        btotal = row[4].value
+        # fmax = row[5].value
+
+        y_series = 1 / (rtotal + 1j * xtotal)
+        y_parallel = 1j * btotal / 2
+
+        if src != dst:
+            # subtract series admittances from off-diagonal entries
+            admittances[src][dst] -= y_series
+
+        # add series and parallel admittances to diagonal entries
+        admittances[src][src] += y_series + y_parallel
+        admittances[dst][dst] += y_series + y_parallel
 
     return admittances
 
@@ -59,7 +72,7 @@ def main():
     line_data_ws = wb[args.line_data_worksheet]
 
     # Create admittance matrix.
-    print(create_admittance_matrix(line_data_ws, args.num_buses))
+    print(create_admittance_matrix(line_data_ws))
 
     # Close input data.
     wb.close()
