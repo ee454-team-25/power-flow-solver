@@ -55,6 +55,7 @@ def create_admittance_matrix(ws):
         if src != dst:
             # subtract series admittances from off-diagonal entries
             admittances[src][dst] -= y_series
+            admittances[dst][src] -= y_series
 
         # add series and parallel admittances to diagonal entries
         admittances[src][src] += y_series + y_parallel
