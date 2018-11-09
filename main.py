@@ -4,6 +4,10 @@ import argparse
 import numpy
 import openpyxl
 
+# Program constants.
+DEFAULT_INPUT_WORKBOOK = 'data/Data.xlsx'
+DEFAULT_LINE_DATA_WORKSHEET = 'Line data'
+
 
 def parse_arguments():
     """Parses command line arguments.
@@ -12,9 +16,32 @@ def parse_arguments():
         An object containing program arguments.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input_workbook', default='Data.xlsx', help='An Excel workbook containing input data.')
-    parser.add_argument('--line_data_worksheet', default='Line data', help='The worksheet containing line data.')
+    parser.add_argument('--input_workbook', default=DEFAULT_INPUT_WORKBOOK,
+                        help='An Excel workbook containing input data.')
+    parser.add_argument('--line_data_worksheet', default=DEFAULT_LINE_DATA_WORKSHEET,
+                        help='The worksheet containing line data.')
     return parser.parse_args()
+
+
+def count_rows(ws):
+    """Counts the number of non-empty, contiguous rows in the worksheet.
+
+    This method is necessary because openpyxl.worksheet.worksheet.max_row does not always correctly detect empty cells.
+
+    Args:
+        ws: The worksheet to read.
+
+    Returns:
+        The number of non-empty, contiguous rows.
+    """
+    n = 0
+    for row in ws.iter_rows():
+        if not row[0].value:
+            break
+
+        n += 1
+
+    return n
 
 
 def create_admittance_matrix(ws):
@@ -37,13 +64,16 @@ def create_admittance_matrix(ws):
     Returns:
         A square matrix containing line-to-line admittances.
     """
-    n = ws.max_row - 1  # skip the header row
-    admittances = numpy.zeros((n, n)) * 1j  # multiply by 1j to make values complex
+    max_row = count_rows(ws) - 1  # skip the header row
+    admittances = numpy.zeros((max_row, max_row)) * 1j  # multiply by 1j to make values complex
 
     # Compute matrix entries.
-    for row in ws.iter_rows(row_offset=1):
+    for row in ws.iter_rows(row_offset=1, max_row=max_row):
+        # Subtract 1 since arrays start at 0, but buses start at 1.
         src = row[0].value - 1
         dst = row[1].value - 1
+
+        # Series and parallel impedances.
         rtotal = row[2].value
         xtotal = row[3].value
         btotal = row[4].value
@@ -53,11 +83,11 @@ def create_admittance_matrix(ws):
         y_parallel = 1j * btotal / 2
 
         if src != dst:
-            # subtract series admittances from off-diagonal entries
+            # Subtract series admittances from off-diagonal entries.
             admittances[src][dst] -= y_series
             admittances[dst][src] -= y_series
 
-        # add series and parallel admittances to diagonal entries
+        # Add series and parallel admittances to diagonal entries.
         admittances[src][src] += y_series + y_parallel
         admittances[dst][dst] += y_series + y_parallel
 
