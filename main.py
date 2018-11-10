@@ -58,11 +58,12 @@ def main():
     # Read bus data.
     start_voltage = args.start_voltage_magnitude * numpy.exp(1j * numpy.deg2rad(args.start_voltage_angle_deg))
     buses = power_flow.read_bus_data(bus_data_ws, args.slack_bus, start_voltage, args.apparent_power_base_mva)
-    print(buses)
 
-    # Create admittance matrix.
+    # Read admittance matrix.
     admittances = power_flow.read_admittance_matrix(line_data_ws, len(buses))
-    print(admittances)
+
+    # Create power flow equations.
+    equations = power_flow.create_power_flow_equations(buses, admittances)
 
     # Close input data.
     wb.close()

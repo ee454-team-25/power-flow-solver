@@ -4,23 +4,14 @@ import numpy
 import operator
 
 
-class BusType(enum.Enum):
-    """An enumeration of bus types."""
-    UNKNOWN = 0
-    LOAD = 1
-    GENERATOR = 2
-    SLACK = 3
-
-
 # An object containing load bus data.
 #
 # Attributes:
-#   type: The bus type.
 #   number: The bus number.
 #   p: The real power consumed (MW).
 #   q: The reactive power consumed (Mvar).
 #   voltage: The bus voltage (pu).
-Bus = namedlist.namedlist('Bus', ['type', 'number', 'p', 'q', 'voltage'])
+Bus = namedlist.namedlist('Bus', ['number', 'p', 'q', 'voltage'])
 
 
 def count_rows(ws):
@@ -44,8 +35,63 @@ def count_rows(ws):
     return n
 
 
+def read_bus_data(ws, slack_bus_num, initial_voltage, power_base_mva):
+    """Reads bus data from an input worksheet.
+
+    The input data is expected to have the following columns:
+
+        1. Bus number
+        2. Real power consumed (MW)
+        3. Reactive power consumed (Mvar)
+        4. Real power delivered (MW)
+        5. Voltage (pu)
+
+    The slack bus has only its reference voltage set. The real and reactive power are set to balance the rest of the
+    system, and power generation is zero.
+
+    A load (PQ) bus is a bus that has real and reactive power consumption. For these buses, power generation is zero.
+
+    A generator (PV) bus is a bus that has real power generation and a terminal voltage. For these buses, power
+    consumption is zero.
+
+    Args:
+        ws: The worksheet containing bus data.
+        slack_bus_num: The slack bus number.
+        initial_voltage: The initial reference voltage.
+        power_base_mva: The apparent power base in MVA.
+
+    Returns:
+        An array containing load bus data.
+    """
+    p_total = 0
+    q_total = 0
+
+    buses = []
+    for i, row in enumerate(ws.iter_rows(row_offset=1, max_row=count_rows(ws))):
+        bus_num = row[0].value
+        p_load = row[1].value or 0
+        q_load = row[2].value or 0
+        p_gen = row[3].value or 0
+        voltage = row[4].value or initial_voltage
+
+        # Convert quantities to per-unit.
+        p = (p_load - p_gen) / power_base_mva
+        q = q_load / power_base_mva
+
+        p_total += p
+        q_total += q
+
+        buses.append(Bus(bus_num, p, q, voltage))
+
+    # Balance system power in the slack bus.
+    buses = sorted(buses, key=operator.attrgetter('number'))
+    buses[slack_bus_num - 1].p = -p_total
+    buses[slack_bus_num - 1].q = -q_total
+    return buses
+
+
 def read_admittance_matrix(ws, num_buses):
-    """Creates an admittance matrix from an input worksheet.
+    """Reads an admittance matrix from an input worksheet.
 
     The worksheet is expected to have a header row. Each subsequent row is expected to contain the following columns:
 
@@ -93,64 +139,42 @@ def read_admittance_matrix(ws, num_buses):
     return admittances
 
 
-def read_bus_data(ws, slack_bus_num, initial_voltage, power_base_mva):
-    """Reads bus data from an input worksheet.
+def create_power_flow_equations(buses, admittances):
+    """Creates the power flow equations from a set of buses and admittances.
 
-    The input data is expected to have the following columns:
+    For each bus, the power flow equations are:
 
-        1. Bus number
-        2. Real power consumed (MW)
-        3. Reactive power consumed (Mvar)
-        4. Real power delivered (MW)
-        5. Voltage (pu)
+        dPk = sum(i = 1 to N) Vk * Vi * Bki * sin(theta_k - theta_i)
+        dQk = sum(i = 1 to N) -Vk * Vi * Bki * cos(theta_k - theta_i)
 
-    The slack bus has only its reference voltage set. The real and reactive power are set to balance the rest of the
-    system, and power generation is zero.
-
-    A load (PQ) bus is a bus that has real and reactive power consumption. For these buses, power generation is zero.
-
-    A generator (PV) bus is a bus that has real power generation and a terminal voltage. For these buses, power
-    consumption is zero.
+    N is the number of buses, Vi is the voltage magnitude at bus i, Bki is the line admittance from bus k to bus i, and
+    theta_i is the voltage angle at bus i.
 
     Args:
-        ws: The worksheet containing bus data.
-        slack_bus_num: The slack bus number.
-        initial_voltage: The initial reference voltage.
-        power_base_mva: The apparent power base in MVA.
+        buses: The state of the system buses.
+        admittances: The system admittances.
 
     Returns:
-        An array containing load bus data.
+        An array of power flow equations in the same order as the input buses.
     """
-    p_total = 0
-    q_total = 0
+    dS = []
+    for src in buses:
+        P = -src.p
+        Q = -src.q
 
-    buses = []
-    for i, row in enumerate(ws.iter_rows(row_offset=1, max_row=count_rows(ws))):
-        bus_num = row[0].value
-        p_load = row[1].value or 0
-        q_load = row[2].value or 0
-        p_gen = row[3].value or 0
-        voltage = row[4].value or initial_voltage
+        k = src.number - 1
+        v_k = numpy.abs(src.voltage)
+        theta_k = numpy.angle(src.voltage)
 
-        # Determine bus type.
-        type = BusType.UNKNOWN
-        if p_load != 0 and q_load != 0 and p_gen == 0:
-            type = BusType.LOAD
-        elif p_load == 0 and q_load == 0 and p_gen != 0:
-            type = BusType.GENERATOR
+        for dst in buses:
+            i = dst.number - 1
+            v_i = numpy.abs(dst.voltage)
+            theta_i = numpy.angle(dst.voltage)
+            b_ki = admittances[k][i]
 
-        # Convert quantities to per-unit.
-        p = (p_load - p_gen) / power_base_mva
-        q = q_load / power_base_mva
+            P += v_k * v_i * b_ki * numpy.sin(theta_k - theta_i)
+            Q += -v_k * v_i * b_ki * numpy.cos(theta_k - theta_i)
 
-        p_total += p
-        q_total += q
+        dS.append(P + 1j * Q)
 
-        buses.append(Bus(type, bus_num, p, q, voltage))
-
-    # Balance system power in the slack bus.
-    buses = sorted(buses, key=operator.attrgetter('number'))
-    buses[slack_bus_num - 1].type = BusType.SLACK
-    buses[slack_bus_num - 1].p = -p_total
-    buses[slack_bus_num - 1].q = -q_total
-    return buses
+    return dS
