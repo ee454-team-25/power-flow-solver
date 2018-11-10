@@ -80,17 +80,17 @@ def parse_arguments():
                         help='The worksheet containing bus data.')
     parser.add_argument('--line_data_worksheet', default=DEFAULT_LINE_DATA_WORKSHEET,
                         help='The worksheet containing line data.')
-    parser.add_argument('--start_voltage_magnitude', type=int, default=numpy.abs(START_VOLTAGE),
+    parser.add_argument('--start_voltage_magnitude', type=float, default=numpy.abs(START_VOLTAGE),
                         help='The initial voltage to use at each bus in V.')
-    parser.add_argument('--start_voltage_angle_deg', type=int, default=numpy.rad2deg(numpy.angle(START_VOLTAGE)),
+    parser.add_argument('--start_voltage_angle_deg', type=float, default=numpy.rad2deg(numpy.angle(START_VOLTAGE)),
                         help='The initial voltage angle to use at each bus in degrees.')
     parser.add_argument('--slack_bus_number', type=int, default=DEFAULT_SLACK_BUS_NUMBER,
                         help='The system slack bus number.')
-    parser.add_argument('--power_base_mva', type=int, default=DEFAULT_POWER_BASE_MVA,
+    parser.add_argument('--power_base_mva', type=float, default=DEFAULT_POWER_BASE_MVA,
                         help='The base apparent power value for the system in MVA.')
-    parser.add_argument('--max_mismatch_mw', type=int, default=DEFAULT_MAX_MISMATCH_MW,
+    parser.add_argument('--max_mismatch_mw', type=float, default=DEFAULT_MAX_MISMATCH_MW,
                         help='The maximum real power mismatch in MW for convergence testing.')
-    parser.add_argument('--max_mismatch_mvar', type=int, default=DEFAULT_MAX_MISMATCH_MW,
+    parser.add_argument('--max_mismatch_mvar', type=float, default=DEFAULT_MAX_MISMATCH_MW,
                         help='The maximum reactive power mismatch in Mvar for convergence testing.')
     return parser.parse_args()
 

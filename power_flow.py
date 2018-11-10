@@ -11,6 +11,9 @@ data are provided, the following algorithm is executed:
             3.2.1 generate the Jacobian matrix (J = [[dP/dtheta, dP/dV], [dQ/dtheta, dQ/dV]])
             3.2.2 solve inv(J) * [[dP], [dQ]] to get a vector of voltage corrections ([[dV], [dtheta]])
         3.3 apply corrections to each bus (except the slack bus)
+
+The algorithm is considered complete when the magnitudes of the mismatches is less than some specified allowable
+threshold (max_mismatch_mw and max_mismatch_mvar).
 """
 
 import namedlist
@@ -22,9 +25,9 @@ import power_flow_jacobian
 #
 # Attributes:
 #   number: The bus number.
-#   s: The complex power consumed at the bus (MVA).
+#   power: The complex power consumed at the bus (MVA).
 #   voltage: The bus voltage (pu).
-Bus = namedlist.namedlist('Bus', ['number', 's', 'voltage'])
+Bus = namedlist.namedlist('Bus', ['number', 'power', 'voltage'])
 
 
 class PowerFlow():
@@ -65,9 +68,9 @@ class PowerFlow():
             s_values = self.create_power_flow_equations(buses, admittances)
 
             # Compute mismatch equations. Ignore the slack bus.
-            dp_values = [s.real - buses[i].s.real for i, s in enumerate(s_values) if
+            dp_values = [s.real - buses[i].power.real for i, s in enumerate(s_values) if
                          buses[i].number != self.slack_bus_number]
-            dq_values = [s.imag - buses[i].s.imag for i, s in enumerate(s_values) if
+            dq_values = [s.imag - buses[i].power.imag for i, s in enumerate(s_values) if
                          buses[i].number != self.slack_bus_number]
 
             # Test for convergence.
@@ -147,7 +150,7 @@ class PowerFlow():
 
         # Balance system power in the slack bus.
         buses = sorted(buses, key=operator.attrgetter('number'))
-        buses[self.slack_bus_number - 1].s = -s_total
+        buses[self.slack_bus_number - 1].power = -s_total
         return buses
 
     def read_admittance_matrix(self, num_buses):
