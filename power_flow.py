@@ -1,8 +1,22 @@
-"""A module containing a power flow analysis API."""
+"""A module containing a power flow analysis API.
+
+The power flow expects bus and line data to be provided in separate Excel worksheets. Once the analysis parameters and
+data are provided, the following algorithm is executed:
+
+    1. load bus data and set flat start voltages
+    2. create admittance matrix from line data
+    3. until a solution is found:
+        3.1 generate real and reactive power mismatch equations (dP and dQ)
+        3.2 generate voltage and phase angle corrections through an iteration of the Newton-Raphson algorithm
+            3.2.1 generate the Jacobian matrix (J = [[dP/dtheta, dP/dV], [dQ/dtheta, dQ/dV]])
+            3.2.2 solve inv(J) * [[dP], [dQ]] to get a vector of voltage corrections ([[dV], [dtheta]])
+        3.3 apply corrections to each bus (except the slack bus)
+"""
 
 import namedlist
 import numpy
 import operator
+import power_flow_jacobian
 
 # An object containing bus data.
 #
@@ -50,19 +64,19 @@ class PowerFlow():
         while True:
             # Compute power flow equations.
             s_values = self.create_power_flow_equations(buses, admittances)
-            p_values = [i.real for i in s_values]
-            q_values = [i.imag for i in s_values]
 
-            # Compute mismatch equations and test for convergence.
-            dp_values = [p - buses[i].s.real for i, p in enumerate(p_values) if
+            # Compute mismatch equations. Ignore the slack bus.
+            dp_values = [s.real - buses[i].s.real for i, s in enumerate(s_values) if
                          buses[i].number != self.slack_bus_number]
-            dq_values = [q - buses[i].s.imag for i, q in enumerate(q_values) if
+            dq_values = [s.imag - buses[i].s.imag for i, s in enumerate(s_values) if
                          buses[i].number != self.slack_bus_number]
+
+            # Test for convergence.
             if self.is_convergent(dp_values, dq_values):
                 break
 
             # Compute Jacobian and its inverse.
-            jacobian = self.create_jacobian_matrix(buses, admittances, p_values, q_values)
+            jacobian = power_flow_jacobian.create_jacobian_matrix(buses, admittances, s_values, self.slack_bus_number)
             invjacobian = numpy.linalg.inv(jacobian)
 
             # Compute corrections.
@@ -226,197 +240,22 @@ class PowerFlow():
 
         return s_values
 
-    def create_jacobian_matrix(self, buses, admittances, p_values, q_values):
-        """Creates the Jacobian matrix for the state of a power system.
-
-        The Jacobian is a 2n by 2n matrix with the following form:
-
-            J = [[J_11] [J_12]]
-                [[J_21] [J_22]]
-
-        Args:
-            buses: The state of the system buses.
-            admittances: The system admittances.
-            p_values: The real power mismatch equations.
-            q_values: The reactive power mismatch equations.
-
-        Returns:
-            The Jacobian matrix for the power system.
-        """
-        # Create submatrices.
-        j_11 = self.create_j11(buses, admittances, p_values, q_values)
-        j_12 = self.create_j12(buses, admittances, p_values, q_values)
-        j_21 = self.create_j21(buses, admittances, p_values, q_values)
-        j_22 = self.create_j22(buses, admittances, p_values, q_values)
-
-        # Remove slack bus entries.
-        j_11 = numpy.delete(j_11, self.slack_bus_number - 1, axis=0)
-        j_11 = numpy.delete(j_11, self.slack_bus_number - 1, axis=1)
-        j_12 = numpy.delete(j_12, self.slack_bus_number - 1, axis=0)
-        j_12 = numpy.delete(j_12, self.slack_bus_number - 1, axis=1)
-        j_21 = numpy.delete(j_21, self.slack_bus_number - 1, axis=0)
-        j_21 = numpy.delete(j_21, self.slack_bus_number - 1, axis=1)
-        j_22 = numpy.delete(j_22, self.slack_bus_number - 1, axis=0)
-        j_22 = numpy.delete(j_22, self.slack_bus_number - 1, axis=1)
-
-        # Combine matrices together.
-        j_1 = numpy.concatenate([j_11, j_12], axis=1)
-        j_2 = numpy.concatenate([j_21, j_22], axis=1)
-        j = numpy.concatenate([j_1, j_2])
-        return j
-
-    def create_j11(self, buses, admittances, unused_p_values, q_values):
-        """Creates the upper-left Jacobian matrix, J_11.
-
-            J_11 = dP_k / dtheta_j
-
-        Args:
-            buses: The state of the system buses.
-            admittances: The system admittances.
-            unused_p_values: The real power mismatch equations.
-            q_values: The reactive power mismatch equations.
-
-        Returns:
-            The Jacobian matrix J_11.
-        """
-        j_11 = numpy.zeros((len(buses), len(buses))) * 1j
-        for src in buses:
-            k = src.number - 1
-            v_k = numpy.abs(src.voltage)
-            theta_k = numpy.angle(src.voltage)
-            q_k = q_values[k]
-
-            for dst in buses:
-                j = dst.number - 1
-                v_j = numpy.abs(dst.voltage)
-                theta_j = numpy.angle(dst.voltage)
-                b_kj = admittances[k][j].imag
-
-                if j != k:
-                    j_11[k][j] = -v_k * v_j * b_kj * numpy.cos(theta_k - theta_j)
-                else:
-                    j_11[k][j] = -q_k - v_k ** 2 * b_kj
-
-        return j_11
-
-    def create_j12(self, buses, admittances, p_values, unused_q_values):
-        """Creates the upper-left Jacobian matrix, J_12.
-
-            J_12 = dP_k / dV_j
-
-        Args:
-            buses: The state of the system buses.
-            admittances: The system admittances.
-            p_values: The real power mismatch equations.
-            unused_q_values: The reactive power mismatch equations.
-
-        Returns:
-            The Jacobian matrix J_12.
-        """
-        j_12 = numpy.zeros((len(buses), len(buses))) * 1j
-        for src in buses:
-            k = src.number - 1
-            v_k = numpy.abs(src.voltage)
-            theta_k = numpy.angle(src.voltage)
-            p_k = p_values[k]
-
-            for dst in buses:
-                j = dst.number - 1
-                v_j = numpy.abs(dst.voltage)
-                theta_j = numpy.angle(dst.voltage)
-                b_kj = admittances[k][j].imag
-
-                if j != k:
-                    j_12[k][j] = v_k * b_kj * numpy.sin(theta_k - theta_j)
-                else:
-                    j_12[k][j] = p_k / v_k
-
-        return j_12
-
-    def create_j21(self, buses, admittances, p_values, unused_q_values):
-        """Creates the upper-left Jacobian matrix, J_21.
-
-            J_21 = dQ_k / dtheta_j
-
-        Args:
-            buses: The state of the system buses.
-            admittances: The system admittances.
-            p_values: The real power mismatch equations.
-            unused_q_values: The reactive power mismatch equations.
-
-        Returns:
-            The Jacobian matrix J_21.
-        """
-        j_21 = numpy.zeros((len(buses), len(buses))) * 1j
-        for src in buses:
-            k = src.number - 1
-            v_k = numpy.abs(src.voltage)
-            theta_k = numpy.angle(src.voltage)
-            p_k = p_values[k]
-
-            for dst in buses:
-                j = dst.number - 1
-                v_j = numpy.abs(dst.voltage)
-                theta_j = numpy.angle(dst.voltage)
-                b_kj = admittances[k][j].imag
-
-                if j != k:
-                    j_21[k][j] = -v_k * v_j * b_kj * numpy.sin(theta_k - theta_j)
-                else:
-                    j_21[k][j] = p_k
-
-        return j_21
-
-    def create_j22(self, buses, admittances, unused_p_values, q_values):
-        """Creates the upper-left Jacobian matrix, J_22.
-
-            J_22 = dQ_k / dV_j
-
-        Args:
-            buses: The state of the system buses.
-            admittances: The system admittances.
-            unused_p_values: The real power mismatch equations.
-            q_values: The reactive power mismatch equations.
-
-        Returns:
-            The Jacobian matrix J_22.
-        """
-        j_22 = numpy.zeros((len(buses), len(buses))) * 1j
-        for src in buses:
-            k = src.number - 1
-            v_k = numpy.abs(src.voltage)
-            theta_k = numpy.angle(src.voltage)
-            q_k = q_values[k]
-
-            for dst in buses:
-                j = dst.number - 1
-                v_j = numpy.abs(dst.voltage)
-                theta_j = numpy.angle(dst.voltage)
-                b_kj = admittances[k][j].imag
-
-                if j != k:
-                    j_22[k][j] = -v_k * b_kj * numpy.sin(theta_k - theta_j)
-                else:
-                    j_22[k][j] = q_k / v_k - b_kj * v_k
-
-        return j_22
-
-    def is_convergent(self, dp_values, dq_values):
+    def is_convergent(self, real_power_mismatches, reactive_power_mismatches):
         """Checks if the power flow has converged to a solution.
 
         Args:
-            dp_values: The real power mismatches.
-            dq_values: The reactive power mismatches,
+            real_power_mismatches: The real power mismatches.
+            reactive_power_mismatches: The reactive power mismatches.
 
         Returns:
             True if the power flow has converged to a solution; false otherwise.
         """
-        for dp in dp_values:
-            if dp >= self.max_mismatch_mw:
+        for mismatch in real_power_mismatches:
+            if mismatch >= self.max_mismatch_mw:
                 return False
 
-        for dq in dq_values:
-            if dq >= self.max_mismatch_mvar:
+        for mismatch in reactive_power_mismatches:
+            if mismatch >= self.max_mismatch_mvar:
                 return False
 
         return True
