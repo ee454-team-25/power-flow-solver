@@ -52,20 +52,22 @@ def main():
 
     # Open input file.
     wb = openpyxl.load_workbook(args.input_workbook, read_only=True)
-    line_data_ws = wb[args.line_data_worksheet]
-    bus_data_ws = wb[args.bus_data_worksheet]
+    bus_data = wb[args.bus_data_worksheet]
+    line_data = wb[args.line_data_worksheet]
 
-    # Read bus data.
+    # Initialize the power flow.
     start_voltage = args.start_voltage_magnitude * numpy.exp(1j * numpy.deg2rad(args.start_voltage_angle_deg))
-    buses = power_flow.read_bus_data(bus_data_ws, args.slack_bus, start_voltage, args.apparent_power_base_mva)
+    pf = power_flow.PowerFlow(
+        bus_data, line_data, args.slack_bus, start_voltage, args.apparent_power_base_mva, args.max_mismatch_mw,
+        args.max_mismatch_mvar)
 
-    # Read admittance matrix.
-    admittances = power_flow.read_admittance_matrix(line_data_ws, len(buses))
+    # Execute the power flow.
+    buses = pf.execute()
 
-    # Create power flow equations.
-    equations = power_flow.create_power_flow_equations(buses, admittances)
+    # TODO(kjiwa): Report on any buses or lines exceeding their operating conditions.
+    print(buses)
 
-    # Close input data.
+    # Close input file.
     wb.close()
 
 
