@@ -15,8 +15,7 @@ DEFAULT_SLACK_BUS = 1
 DEFAULT_POWER_BASE_MVA = 100
 DEFAULT_MAX_MISMATCH_MW = 0.1
 DEFAULT_MAX_MISMATCH_MVAR = 0.1
-FLAT_START_VOLTAGE_MAGNITUDE = 1.0
-FLAT_START_VOLTAGE_ANGLE_DEG = 0.0
+FLAT_START_VOLTAGE = 1.0 + -0j
 
 
 def parse_arguments():
@@ -32,9 +31,9 @@ def parse_arguments():
                         help='The worksheet containing bus data.')
     parser.add_argument('--line_data_worksheet', default=DEFAULT_LINE_DATA_WORKSHEET,
                         help='The worksheet containing line data.')
-    parser.add_argument('--start_voltage_magnitude', type=int, default=FLAT_START_VOLTAGE_MAGNITUDE,
+    parser.add_argument('--start_voltage_magnitude', type=int, default=numpy.abs(FLAT_START_VOLTAGE),
                         help='The initial voltage to use at each bus in V.')
-    parser.add_argument('--start_voltage_angle_deg', type=int, default=FLAT_START_VOLTAGE_ANGLE_DEG,
+    parser.add_argument('--start_voltage_angle_deg', type=int, default=numpy.rad2deg(numpy.angle(FLAT_START_VOLTAGE)),
                         help='The initial voltage angle to use at each bus in degrees.')
     parser.add_argument('--slack_bus', type=int, default=DEFAULT_SLACK_BUS, help='The system slack bus.')
     parser.add_argument('--power_base_mva', type=int, default=DEFAULT_POWER_BASE_MVA,

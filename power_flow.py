@@ -229,8 +229,8 @@ class PowerFlow():
             True if the power flow has converged to a solution; false otherwise.
         """
         convergent = True
-        for eq in mismatches:
-            if eq.real >= max_mismatch_mw or eq.imag >= max_mismatch_mvar:
+        for mismatch in mismatches:
+            if mismatch.real >= max_mismatch_mw or mismatch.imag >= max_mismatch_mvar:
                 convergent = False
                 break
 
