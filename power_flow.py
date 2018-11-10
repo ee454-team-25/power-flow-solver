@@ -17,13 +17,13 @@ class PowerFlow():
     """A power flow object."""
 
     def __init__(
-        self, bus_data, line_data, slack_bus, start_voltage, power_base_mva, max_mismatch_mw, max_mismatch_mvar):
+        self, bus_data, line_data, slack_bus_number, start_voltage, power_base_mva, max_mismatch_mw, max_mismatch_mvar):
         """Creates a new power flow object.
 
         Args:
             bus_data: The openpyxl worksheet containing bus data.
             line_data: The openpyxl worksheet containing line data.
-            slack_bus: The slack bus number.
+            slack_bus_number: The slack bus number.
             start_voltage: The initial voltages to use at each bus.
             power_base_mva: The power base in MVA.
             max_mismatch_mw: The maximum allowable real power mismatch for a solution to be considered final.
@@ -31,7 +31,7 @@ class PowerFlow():
         """
         self.bus_data = bus_data
         self.line_data = line_data
-        self.slack_bus = slack_bus
+        self.slack_bus_number = slack_bus_number
         self.start_voltage = start_voltage
         self.power_base_mva = power_base_mva
         self.max_mismatch_mw = max_mismatch_mw
@@ -43,20 +43,43 @@ class PowerFlow():
         Returns:
             An array of buses and their steady-state solutions.
         """
-        # Read bus data.
         buses = self.read_bus_data()
+        admittances = self.read_admittance_matrix(len(buses))
 
-        # Read admittance matrix.
-        # admittances = self.read_admittance_matrix(len(buses))
+        # TODO(kjiwa): Clean this section up.
+        while True:
+            # Compute power flow equations.
+            s_values = self.create_power_flow_equations(buses, admittances)
+            p_values = [i.real for i in s_values]
+            q_values = [i.imag for i in s_values]
 
-        # TODO(kjiwa): Apply the Newton-Raphson method until a solution is found.
+            # Compute mismatch equations and test for convergence.
+            dp_values = [p - buses[i].s.real for i, p in enumerate(p_values) if
+                         buses[i].number != self.slack_bus_number]
+            dq_values = [q - buses[i].s.imag for i, q in enumerate(q_values) if
+                         buses[i].number != self.slack_bus_number]
+            if self.is_convergent(dp_values, dq_values):
+                break
 
-        # Create power flow equations.
-        # mismatches = self.create_mismatch_equations(buses, admittances)
+            # Compute Jacobian and its inverse.
+            jacobian = self.create_jacobian_matrix(buses, admittances, p_values, q_values)
+            invjacobian = numpy.linalg.inv(jacobian)
 
-        # Check for convergence.
-        # if self.is_convergent(mismatches):
-        #     break
+            # Compute corrections.
+            corrections = -numpy.matmul(invjacobian, numpy.concatenate([dp_values, dq_values]))
+            voltage_corrections = corrections[0:len(corrections) // 2]
+            theta_corrections = corrections[len(corrections) // 2:]
+
+            # Apply corrections.
+            count = 0
+            for bus in buses:
+                if bus.number == self.slack_bus_number:
+                    continue
+
+                voltage = numpy.abs(bus.voltage) + voltage_corrections[count]
+                theta = numpy.angle(bus.voltage) + theta_corrections[count]
+                bus.voltage = voltage * numpy.exp(1j * theta)
+                count += 1
 
         return buses
 
@@ -93,7 +116,7 @@ class PowerFlow():
             5. Voltage (pu)
 
         Returns:
-            An array containing load bus data.
+            An array containing bus data.
         """
         s_total = 0j
         buses = []
@@ -111,7 +134,7 @@ class PowerFlow():
 
         # Balance system power in the slack bus.
         buses = sorted(buses, key=operator.attrgetter('number'))
-        buses[self.slack_bus - 1].s = -s_total
+        buses[self.slack_bus_number - 1].s = -s_total
         return buses
 
     def read_admittance_matrix(self, num_buses):
@@ -163,7 +186,7 @@ class PowerFlow():
 
         return admittances
 
-    def create_mismatch_equations(self, buses, admittances):
+    def create_power_flow_equations(self, buses, admittances):
         """Creates the power flow equations from a set of buses and admittances.
 
         For each bus, the power flow equations are:
@@ -181,41 +204,219 @@ class PowerFlow():
         Returns:
             An array of power flow equations in the same order as the input buses.
         """
-        dS = []
+        s_values = []
         for src in buses:
-            s = -src.s
+            s = 0j
 
             k = src.number - 1
             v_k = numpy.abs(src.voltage)
             theta_k = numpy.angle(src.voltage)
 
             for dst in buses:
-                i = dst.number - 1
-                v_i = numpy.abs(dst.voltage)
-                theta_i = numpy.angle(dst.voltage)
-                b_ki = admittances[k][i]
+                j = dst.number - 1
+                v_j = numpy.abs(dst.voltage)
+                theta_j = numpy.angle(dst.voltage)
+                b_kj = admittances[k][j].imag
 
-                p = v_k * v_i * b_ki * numpy.sin(theta_k - theta_i)
-                q = -v_k * v_i * b_ki * numpy.cos(theta_k - theta_i)
+                p = v_k * v_j * b_kj * numpy.sin(theta_k - theta_j)
+                q = -v_k * v_j * b_kj * numpy.cos(theta_k - theta_j)
                 s += p + 1j * q
 
-            dS.append(s)
+            s_values.append(s)
 
-        return dS
+        return s_values
 
-    def is_convergent(self, mismatches):
+    def create_jacobian_matrix(self, buses, admittances, p_values, q_values):
+        """Creates the Jacobian matrix for the state of a power system.
+
+        The Jacobian is a 2n by 2n matrix with the following form:
+
+            J = [[J_11] [J_12]]
+                [[J_21] [J_22]]
+
+        Args:
+            buses: The state of the system buses.
+            admittances: The system admittances.
+            p_values: The real power mismatch equations.
+            q_values: The reactive power mismatch equations.
+
+        Returns:
+            The Jacobian matrix for the power system.
+        """
+        # Create submatrices.
+        j_11 = self.create_j11(buses, admittances, p_values, q_values)
+        j_12 = self.create_j12(buses, admittances, p_values, q_values)
+        j_21 = self.create_j21(buses, admittances, p_values, q_values)
+        j_22 = self.create_j22(buses, admittances, p_values, q_values)
+
+        # Remove slack bus entries.
+        j_11 = numpy.delete(j_11, self.slack_bus_number - 1, axis=0)
+        j_11 = numpy.delete(j_11, self.slack_bus_number - 1, axis=1)
+        j_12 = numpy.delete(j_12, self.slack_bus_number - 1, axis=0)
+        j_12 = numpy.delete(j_12, self.slack_bus_number - 1, axis=1)
+        j_21 = numpy.delete(j_21, self.slack_bus_number - 1, axis=0)
+        j_21 = numpy.delete(j_21, self.slack_bus_number - 1, axis=1)
+        j_22 = numpy.delete(j_22, self.slack_bus_number - 1, axis=0)
+        j_22 = numpy.delete(j_22, self.slack_bus_number - 1, axis=1)
+
+        # Combine matrices together.
+        j_1 = numpy.concatenate([j_11, j_12], axis=1)
+        j_2 = numpy.concatenate([j_21, j_22], axis=1)
+        j = numpy.concatenate([j_1, j_2])
+        return j
+
+    def create_j11(self, buses, admittances, unused_p_values, q_values):
+        """Creates the upper-left Jacobian matrix, J_11.
+
+            J_11 = dP_k / dtheta_j
+
+        Args:
+            buses: The state of the system buses.
+            admittances: The system admittances.
+            unused_p_values: The real power mismatch equations.
+            q_values: The reactive power mismatch equations.
+
+        Returns:
+            The Jacobian matrix J_11.
+        """
+        j_11 = numpy.zeros((len(buses), len(buses))) * 1j
+        for src in buses:
+            k = src.number - 1
+            v_k = numpy.abs(src.voltage)
+            theta_k = numpy.angle(src.voltage)
+            q_k = q_values[k]
+
+            for dst in buses:
+                j = dst.number - 1
+                v_j = numpy.abs(dst.voltage)
+                theta_j = numpy.angle(dst.voltage)
+                b_kj = admittances[k][j].imag
+
+                if j != k:
+                    j_11[k][j] = -v_k * v_j * b_kj * numpy.cos(theta_k - theta_j)
+                else:
+                    j_11[k][j] = -q_k - v_k ** 2 * b_kj
+
+        return j_11
+
+    def create_j12(self, buses, admittances, p_values, unused_q_values):
+        """Creates the upper-left Jacobian matrix, J_12.
+
+            J_12 = dP_k / dV_j
+
+        Args:
+            buses: The state of the system buses.
+            admittances: The system admittances.
+            p_values: The real power mismatch equations.
+            unused_q_values: The reactive power mismatch equations.
+
+        Returns:
+            The Jacobian matrix J_12.
+        """
+        j_12 = numpy.zeros((len(buses), len(buses))) * 1j
+        for src in buses:
+            k = src.number - 1
+            v_k = numpy.abs(src.voltage)
+            theta_k = numpy.angle(src.voltage)
+            p_k = p_values[k]
+
+            for dst in buses:
+                j = dst.number - 1
+                v_j = numpy.abs(dst.voltage)
+                theta_j = numpy.angle(dst.voltage)
+                b_kj = admittances[k][j].imag
+
+                if j != k:
+                    j_12[k][j] = v_k * b_kj * numpy.sin(theta_k - theta_j)
+                else:
+                    j_12[k][j] = p_k / v_k
+
+        return j_12
+
+    def create_j21(self, buses, admittances, p_values, unused_q_values):
+        """Creates the upper-left Jacobian matrix, J_21.
+
+            J_21 = dQ_k / dtheta_j
+
+        Args:
+            buses: The state of the system buses.
+            admittances: The system admittances.
+            p_values: The real power mismatch equations.
+            unused_q_values: The reactive power mismatch equations.
+
+        Returns:
+            The Jacobian matrix J_21.
+        """
+        j_21 = numpy.zeros((len(buses), len(buses))) * 1j
+        for src in buses:
+            k = src.number - 1
+            v_k = numpy.abs(src.voltage)
+            theta_k = numpy.angle(src.voltage)
+            p_k = p_values[k]
+
+            for dst in buses:
+                j = dst.number - 1
+                v_j = numpy.abs(dst.voltage)
+                theta_j = numpy.angle(dst.voltage)
+                b_kj = admittances[k][j].imag
+
+                if j != k:
+                    j_21[k][j] = -v_k * v_j * b_kj * numpy.sin(theta_k - theta_j)
+                else:
+                    j_21[k][j] = p_k
+
+        return j_21
+
+    def create_j22(self, buses, admittances, unused_p_values, q_values):
+        """Creates the upper-left Jacobian matrix, J_22.
+
+            J_22 = dQ_k / dV_j
+
+        Args:
+            buses: The state of the system buses.
+            admittances: The system admittances.
+            unused_p_values: The real power mismatch equations.
+            q_values: The reactive power mismatch equations.
+
+        Returns:
+            The Jacobian matrix J_22.
+        """
+        j_22 = numpy.zeros((len(buses), len(buses))) * 1j
+        for src in buses:
+            k = src.number - 1
+            v_k = numpy.abs(src.voltage)
+            theta_k = numpy.angle(src.voltage)
+            q_k = q_values[k]
+
+            for dst in buses:
+                j = dst.number - 1
+                v_j = numpy.abs(dst.voltage)
+                theta_j = numpy.angle(dst.voltage)
+                b_kj = admittances[k][j].imag
+
+                if j != k:
+                    j_22[k][j] = -v_k * b_kj * numpy.sin(theta_k - theta_j)
+                else:
+                    j_22[k][j] = q_k / v_k - b_kj * v_k
+
+        return j_22
+
+    def is_convergent(self, dp_values, dq_values):
         """Checks if the power flow has converged to a solution.
 
         Args:
-            mismatches: Bus power mismatches.
+            dp_values: The real power mismatches.
+            dq_values: The reactive power mismatches,
 
         Returns:
             True if the power flow has converged to a solution; false otherwise.
         """
-        convergent = True
-        for mismatch in mismatches:
-            if mismatch.real >= self.max_mismatch_mw or mismatch.imag >= self.max_mismatch_mvar:
-                convergent = False
-                break
+        for dp in dp_values:
+            if dp >= self.max_mismatch_mw:
+                return False
 
-        return convergent
+        for dq in dq_values:
+            if dq >= self.max_mismatch_mvar:
+                return False
+
+        return True
