@@ -1,3 +1,5 @@
+"""A module containing a power flow analysis API."""
+
 import namedlist
 import numpy
 import operator

@@ -1,9 +1,9 @@
 """A program that analyzes and solves a power flow."""
 
-import numpy
-import power_flow
 import argparse
+import numpy
 import openpyxl
+import power_flow
 
 # Input data constants.
 DEFAULT_INPUT_WORKBOOK = 'data/Data.xlsx'
@@ -15,7 +15,7 @@ DEFAULT_SLACK_BUS = 1
 DEFAULT_POWER_BASE_MVA = 100
 DEFAULT_MAX_MISMATCH_MW = 0.1
 DEFAULT_MAX_MISMATCH_MVAR = 0.1
-FLAT_START_VOLTAGE = 1.0 + -0j
+FLAT_START_VOLTAGE = 1.0 + 0j
 
 
 def parse_arguments():
