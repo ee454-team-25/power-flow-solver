@@ -44,10 +44,10 @@ class PowerFlow():
             An array of buses and their steady-state solutions.
         """
         # Read bus data.
-        buses = self.read_bus_data(self.bus_data, self.slack_bus, self.start_voltage, self.power_base_mva)
+        buses = self.read_bus_data()
 
         # Read admittance matrix.
-        # admittances = self.read_admittance_matrix(self.line_data, len(buses))
+        # admittances = self.read_admittance_matrix(len(buses))
 
         # TODO(kjiwa): Apply the Newton-Raphson method until a solution is found.
 
@@ -55,7 +55,7 @@ class PowerFlow():
         # mismatches = self.create_mismatch_equations(buses, admittances)
 
         # Check for convergence.
-        # if self.is_convergent(mismatches, self.max_mismatch_mw, self.max_mismatch_mvar):
+        # if self.is_convergent(mismatches):
         #     break
 
         return buses
@@ -81,7 +81,7 @@ class PowerFlow():
 
         return n
 
-    def read_bus_data(self, ws, slack_bus_num, initial_voltage, power_base_mva):
+    def read_bus_data(self):
         """Reads bus data from an input worksheet.
 
         The input data is expected to have the following columns:
@@ -92,44 +92,29 @@ class PowerFlow():
             4. Real power delivered (MW)
             5. Voltage (pu)
 
-        The slack bus has only its reference voltage set. The real and reactive power are set to balance the rest of
-        the system, and power generation is zero.
-
-        A load (PQ) bus is a bus that has real and reactive power consumption. For these buses, power generation is
-        zero.
-
-        A generator (PV) bus is a bus that has real power generation and a terminal voltage. For these buses, power
-        consumption is zero.
-
-        Args:
-            ws: The worksheet containing bus data.
-            slack_bus_num: The slack bus number.
-            initial_voltage: The initial reference voltage.
-            power_base_mva: The apparent power base in MVA.
-
         Returns:
             An array containing load bus data.
         """
         s_total = 0j
         buses = []
-        for i, row in enumerate(ws.iter_rows(row_offset=1, max_row=self.count_rows(ws))):
+        for i, row in enumerate(self.bus_data.iter_rows(row_offset=1, max_row=self.count_rows(self.bus_data))):
             bus_num = row[0].value
             p_load = row[1].value or 0
             q_load = row[2].value or 0
             p_gen = row[3].value or 0
-            voltage = row[4].value or initial_voltage
+            voltage = row[4].value or self.start_voltage
             voltage += 0j  # force the voltage value to be complex
 
-            s = (p_load - p_gen + 1j * q_load) / power_base_mva
+            s = (p_load - p_gen + 1j * q_load) / self.power_base_mva
             s_total += s
             buses.append(Bus(bus_num, s, voltage))
 
         # Balance system power in the slack bus.
         buses = sorted(buses, key=operator.attrgetter('number'))
-        buses[slack_bus_num - 1].s = -s_total
+        buses[self.slack_bus - 1].s = -s_total
         return buses
 
-    def read_admittance_matrix(self, ws, num_buses):
+    def read_admittance_matrix(self, num_buses):
         """Reads an admittance matrix from an input worksheet.
 
         The worksheet is expected to have a header row. Each subsequent row is expected to contain the following
@@ -146,7 +131,6 @@ class PowerFlow():
         different.
 
         Args:
-            ws: The worksheet containing line data.
             num_buses: The number of buses in the system.
 
         Returns:
@@ -155,7 +139,7 @@ class PowerFlow():
         admittances = numpy.zeros((num_buses, num_buses)) * 1j  # multiply by 1j to make values complex
 
         # Compute matrix entries.
-        for row in ws.iter_rows(row_offset=1, max_row=num_buses):
+        for row in self.line_data.iter_rows(row_offset=1, max_row=num_buses):
             # Subtract 1 since arrays start at 0, but buses start at 1.
             src = row[0].value - 1
             dst = row[1].value - 1
@@ -219,20 +203,18 @@ class PowerFlow():
 
         return dS
 
-    def is_convergent(self, mismatches, max_mismatch_mw, max_mismatch_mvar):
+    def is_convergent(self, mismatches):
         """Checks if the power flow has converged to a solution.
 
         Args:
             mismatches: Bus power mismatches.
-            max_mismatch_mw: The maximum allowable real power mismatch for a solution to be considered final.
-            max_mismatch_mvar: The maximum allowable reactive power mismatch for a solution to be considered final.
 
         Returns:
             True if the power flow has converged to a solution; false otherwise.
         """
         convergent = True
         for mismatch in mismatches:
-            if mismatch.real >= max_mismatch_mw or mismatch.imag >= max_mismatch_mvar:
+            if mismatch.real >= self.max_mismatch_mw or mismatch.imag >= self.max_mismatch_mvar:
                 convergent = False
                 break
 
