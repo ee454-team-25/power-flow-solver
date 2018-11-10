@@ -183,8 +183,7 @@ class PowerFlow():
         """
         dS = []
         for src in buses:
-            P = -src.p
-            Q = -src.q
+            s = -src.s
 
             k = src.number - 1
             v_k = numpy.abs(src.voltage)
@@ -196,10 +195,11 @@ class PowerFlow():
                 theta_i = numpy.angle(dst.voltage)
                 b_ki = admittances[k][i]
 
-                P += v_k * v_i * b_ki * numpy.sin(theta_k - theta_i)
-                Q += -v_k * v_i * b_ki * numpy.cos(theta_k - theta_i)
+                p = v_k * v_i * b_ki * numpy.sin(theta_k - theta_i)
+                q = -v_k * v_i * b_ki * numpy.cos(theta_k - theta_i)
+                s += p + 1j * q
 
-            dS.append(P + 1j * Q)
+            dS.append(s)
 
         return dS
 
