@@ -2,14 +2,13 @@ import namedlist
 import numpy
 import operator
 
-# An object containing load bus data.
+# An object containing bus data.
 #
 # Attributes:
 #   number: The bus number.
-#   p: The real power consumed (MW).
-#   q: The reactive power consumed (Mvar).
+#   s: The complex power consumed at the bus(MVA).
 #   voltage: The bus voltage (pu).
-Bus = namedlist.namedlist('Bus', ['number', 'p', 'q', 'voltage'])
+Bus = namedlist.namedlist('Bus', ['number', 's', 'voltage'])
 
 
 class PowerFlow():
@@ -110,9 +109,7 @@ class PowerFlow():
         Returns:
             An array containing load bus data.
         """
-        p_total = 0
-        q_total = 0
-
+        s_total = 0j
         buses = []
         for i, row in enumerate(ws.iter_rows(row_offset=1, max_row=self.count_rows(ws))):
             bus_num = row[0].value
@@ -120,20 +117,15 @@ class PowerFlow():
             q_load = row[2].value or 0
             p_gen = row[3].value or 0
             voltage = row[4].value or initial_voltage
+            voltage += 0j  # force the voltage value to be complex
 
-            # Convert quantities to per-unit.
-            p = (p_load - p_gen) / power_base_mva
-            q = q_load / power_base_mva
-
-            p_total += p
-            q_total += q
-
-            buses.append(Bus(bus_num, p, q, voltage))
+            s = (p_load - p_gen + 1j * q_load) / power_base_mva
+            s_total += s
+            buses.append(Bus(bus_num, s, voltage))
 
         # Balance system power in the slack bus.
         buses = sorted(buses, key=operator.attrgetter('number'))
-        buses[slack_bus_num - 1].p = -p_total
-        buses[slack_bus_num - 1].q = -q_total
+        buses[slack_bus_num - 1].s = -s_total
         return buses
 
     def read_admittance_matrix(self, ws, num_buses):
