@@ -6,7 +6,7 @@ import operator
 #
 # Attributes:
 #   number: The bus number.
-#   s: The complex power consumed at the bus(MVA).
+#   s: The complex power consumed at the bus (MVA).
 #   voltage: The bus voltage (pu).
 Bus = namedlist.namedlist('Bus', ['number', 's', 'voltage'])
 
@@ -15,8 +15,7 @@ class PowerFlow():
     """A power flow object."""
 
     def __init__(
-        self, bus_data, line_data, slack_bus, start_voltage, apparent_power_base_mva, max_mismatch_mw,
-        max_mismatch_mvar):
+        self, bus_data, line_data, slack_bus, start_voltage, power_base_mva, max_mismatch_mw, max_mismatch_mvar):
         """Creates a new power flow object.
 
         Args:
@@ -24,7 +23,7 @@ class PowerFlow():
             line_data: The openpyxl worksheet containing line data.
             slack_bus: The slack bus number.
             start_voltage: The initial voltages to use at each bus.
-            apparent_power_base_mva: The power base in MVA.
+            power_base_mva: The power base in MVA.
             max_mismatch_mw: The maximum allowable real power mismatch for a solution to be considered final.
             max_mismatch_mvar: The maximum allowable reactive power mismatch for a solution to be considered final.
         """
@@ -32,7 +31,7 @@ class PowerFlow():
         self.line_data = line_data
         self.slack_bus = slack_bus
         self.start_voltage = start_voltage
-        self.apparent_power_base_mva = apparent_power_base_mva
+        self.power_base_mva = power_base_mva
         self.max_mismatch_mw = max_mismatch_mw
         self.max_mismatch_mvar = max_mismatch_mvar
 
@@ -43,7 +42,7 @@ class PowerFlow():
             An array of buses and their steady-state solutions.
         """
         # Read bus data.
-        buses = self.read_bus_data(self.bus_data, self.slack_bus, self.start_voltage, self.apparent_power_base_mva)
+        buses = self.read_bus_data(self.bus_data, self.slack_bus, self.start_voltage, self.power_base_mva)
 
         # Read admittance matrix.
         # admittances = self.read_admittance_matrix(self.line_data, len(buses))

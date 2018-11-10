@@ -12,7 +12,7 @@ DEFAULT_LINE_DATA_WORKSHEET = 'Line data'
 
 # Power flow constants.
 DEFAULT_SLACK_BUS = 1
-DEFAULT_APPARENT_POWER_BASE_MVA = 100
+DEFAULT_POWER_BASE_MVA = 100
 DEFAULT_MAX_MISMATCH_MW = 0.1
 DEFAULT_MAX_MISMATCH_MVAR = 0.1
 FLAT_START_VOLTAGE_MAGNITUDE = 1.0
@@ -37,7 +37,7 @@ def parse_arguments():
     parser.add_argument('--start_voltage_angle_deg', type=int, default=FLAT_START_VOLTAGE_ANGLE_DEG,
                         help='The initial voltage angle to use at each bus in degrees.')
     parser.add_argument('--slack_bus', type=int, default=DEFAULT_SLACK_BUS, help='The system slack bus.')
-    parser.add_argument('--apparent_power_base_mva', type=int, default=DEFAULT_APPARENT_POWER_BASE_MVA,
+    parser.add_argument('--power_base_mva', type=int, default=DEFAULT_POWER_BASE_MVA,
                         help='The base apparent power value for the system in MVA.')
     parser.add_argument('--max_mismatch_mw', type=int, default=DEFAULT_MAX_MISMATCH_MW,
                         help='The maximum real power mismatch in MW for convergence testing.')
@@ -58,7 +58,7 @@ def main():
     # Initialize the power flow.
     start_voltage = args.start_voltage_magnitude * numpy.exp(1j * numpy.deg2rad(args.start_voltage_angle_deg))
     pf = power_flow.PowerFlow(
-        bus_data, line_data, args.slack_bus, start_voltage, args.apparent_power_base_mva, args.max_mismatch_mw,
+        bus_data, line_data, args.slack_bus, start_voltage, args.power_base_mva, args.max_mismatch_mw,
         args.max_mismatch_mvar)
 
     # Execute the power flow.
