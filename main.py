@@ -114,7 +114,8 @@ def main():
     buses = pf.execute()
 
     # TODO(kjiwa): Report on any buses or lines exceeding their operating conditions.
-    print(buses)
+    for bus in buses:
+        print('{}: {} pu at {} deg'.format(bus.number, numpy.abs(bus.voltage), numpy.rad2deg(numpy.angle(bus.voltage))))
 
     # Close input file.
     wb.close()

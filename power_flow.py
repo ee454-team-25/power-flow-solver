@@ -48,8 +48,8 @@ class PowerFlow():
         self.slack_bus_number = slack_bus_number
         self.start_voltage = start_voltage
         self.power_base_mva = power_base_mva
-        self.max_mismatch_mw = max_mismatch_mw
-        self.max_mismatch_mvar = max_mismatch_mvar
+        self.max_active_power_mismatch_pu = max_mismatch_mw / power_base_mva
+        self.max_reactive_power_mismatch_pu = max_mismatch_mvar / power_base_mva
 
     def execute(self):
         """Executes a power flow analysis.
@@ -60,7 +60,6 @@ class PowerFlow():
         buses = self.read_bus_data()
         admittances = self.read_admittance_matrix(len(buses))
 
-        # TODO(kjiwa): Clean this section up.
         while True:
             # Compute power flow equations.
             s_values = self.create_power_flow_equations(buses, admittances)
@@ -81,8 +80,8 @@ class PowerFlow():
 
             # Compute corrections.
             corrections = -numpy.matmul(invjacobian, numpy.concatenate([dp_values, dq_values]))
-            voltage_corrections = corrections[0:len(corrections) // 2]
-            theta_corrections = corrections[len(corrections) // 2:]
+            voltage_corrections = corrections[len(corrections) // 2:]
+            theta_corrections = corrections[0:len(corrections) // 2]
 
             # Apply corrections.
             count = 0
@@ -251,11 +250,11 @@ class PowerFlow():
             True if the power flow has converged to a solution; false otherwise.
         """
         for mismatch in real_power_mismatches:
-            if mismatch >= self.max_mismatch_mw:
+            if mismatch >= self.max_active_power_mismatch_pu:
                 return False
 
         for mismatch in reactive_power_mismatches:
-            if mismatch >= self.max_mismatch_mvar:
+            if mismatch >= self.max_reactive_power_mismatch_pu:
                 return False
 
         return True
