@@ -50,6 +50,8 @@ Program arguments: In addition to bus and line data, power flow analysis require
 """
 
 import argparse
+import csv
+import io
 import numpy
 import openpyxl
 import power_flow
@@ -114,8 +116,14 @@ def main():
     buses = pf.execute()
 
     # TODO(kjiwa): Report on any buses or lines exceeding their operating conditions.
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Bus', 'Power', 'Voltage'])
     for bus in buses:
-        print(bus)
+        v = '{:.3f} pu {:.3f} deg'.format(numpy.abs(bus.voltage), numpy.rad2deg(numpy.angle(bus.voltage)))
+        writer.writerow([bus.number, bus.power, v])
+
+    print(output.getvalue())
 
     # Close input file.
     wb.close()
