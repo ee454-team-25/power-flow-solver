@@ -83,8 +83,8 @@ class PowerFlow():
 
             # Compute corrections.
             corrections = -numpy.matmul(invjacobian, numpy.concatenate([dp_values, dq_values]))
-            voltage_corrections = corrections[len(corrections) // 2:]
-            theta_corrections = corrections[0:len(corrections) // 2]
+            theta_corrections = corrections[0:len(corrections) // 2]  # first half of corrections
+            voltage_corrections = corrections[len(corrections) // 2:]  # second half of corrections
 
             # Apply corrections.
             count = 0
