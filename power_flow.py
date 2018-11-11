@@ -6,14 +6,35 @@ data are provided, the following algorithm is executed:
     1. load bus data and set flat start voltages
     2. create admittance matrix from line data
     3. until a solution is found:
-        3.1 generate real and reactive power mismatch equations (dP and dQ)
+        3.1 generate real and reactive power error terms (dP and dQ)
         3.2 generate voltage and phase angle corrections through an iteration of the Newton-Raphson algorithm
             3.2.1 generate the Jacobian matrix (J = [[dP/dtheta, dP/dV], [dQ/dtheta, dQ/dV]])
             3.2.2 solve inv(J) * [[dP], [dQ]] to get a vector of voltage corrections ([[dV], [dtheta]])
         3.3 apply corrections to each bus (except the slack bus)
 
-The algorithm is considered complete when the magnitudes of the mismatches is less than some specified allowable
-threshold (max_mismatch_mw and max_mismatch_mvar).
+More formally, let S(actual) = P(actual) + jQ(actual) be a vector of power consumption at each bus, V be a vector of
+voltages (and voltage angles) at each bus, and Y be the admittance matrix for the system. Initially, any unknown
+voltages in V are set to a reference voltage (usually 1.0 pu, the flat start voltage), and the Newton-Raphson method is
+used to reduce the error in bus power to zero, and iterate the system towards a steady-state solution.
+
+    while true:
+        P(calculated) = [sum(i = 1 to N) B[k][i] V[k] V[i] sin(theta[k] - theta[i])]
+        Q(calculated) = [sum(i = 1 to N) -B[k][i] V[k] V[i] cos(theta[k] - theta[i])]
+
+        P(error) = P(calculated) - P(actual)
+        Q(error) = Q(calculated) - Q(actual)
+
+        if P(error) < P(max error) and Q(error) < Q(max error):
+            break
+
+        x = [angle(V), abs(V)]
+        J = [[dP(error) / dtheta, dP(error) / dV], [dQ(error) / dtheta, dQ(error) / dV]]
+        dx = inverse(J) x
+
+        V += dx[0] * e^(jdx[1])
+
+The algorithm is considered complete when the magnitude of the error is less than some specified allowable threshold
+(max_error_mw and max_error_mvar).
 """
 
 import namedlist
@@ -25,7 +46,7 @@ import power_flow_jacobian
 #
 # Attributes:
 #   number: The bus number.
-#   power: The complex power consumed at the bus (MVA).
+#   power: The complex power consumed at the bus (pu).
 #   voltage: The bus voltage (pu).
 Bus = namedlist.namedlist('Bus', ['number', 'power', 'voltage'])
 
@@ -34,7 +55,7 @@ class PowerFlow():
     """A power flow object."""
 
     def __init__(
-        self, bus_data, line_data, slack_bus_number, start_voltage, power_base_mva, max_mismatch_mw, max_mismatch_mvar):
+        self, bus_data, line_data, slack_bus_number, start_voltage, power_base_mva, max_error_mw, max_error_mvar):
         """Creates a new power flow object.
 
         Args:
@@ -43,16 +64,16 @@ class PowerFlow():
             slack_bus_number: The slack bus number.
             start_voltage: The initial voltages to use at each bus.
             power_base_mva: The power base in MVA.
-            max_mismatch_mw: The maximum allowable real power mismatch for a solution to be considered final.
-            max_mismatch_mvar: The maximum allowable reactive power mismatch for a solution to be considered final.
+            max_error_mw: The maximum allowable real power mismatch for a solution to be considered final.
+            max_error_mvar: The maximum allowable reactive power mismatch for a solution to be considered final.
         """
         self.bus_data = bus_data
         self.line_data = line_data
         self.slack_bus_number = slack_bus_number
         self.start_voltage = start_voltage
         self.power_base_mva = power_base_mva
-        self.max_active_power_mismatch_pu = max_mismatch_mw / power_base_mva
-        self.max_reactive_power_mismatch_pu = max_mismatch_mvar / power_base_mva
+        self.max_active_power_mismatch_pu = max_error_mw / power_base_mva
+        self.max_reactive_power_mismatch_pu = max_error_mvar / power_base_mva
 
     def execute(self):
         """Executes a power flow analysis.
@@ -65,26 +86,26 @@ class PowerFlow():
 
         while True:
             # Compute power flow equations.
-            s_values = self.create_power_flow_equations(buses, admittances)
+            s_calculated = self.create_power_flow_equations(buses, admittances)
 
-            # Compute mismatch equations. Ignore the slack bus.
-            dp_values = [s.real - buses[i].power.real for i, s in enumerate(s_values) if
-                         buses[i].number != self.slack_bus_number]
-            dq_values = [s.imag - buses[i].power.imag for i, s in enumerate(s_values) if
-                         buses[i].number != self.slack_bus_number]
+            # Compute error terms. Ignore the slack bus.
+            s_error = [s - buses[i].power for i, s in enumerate(s_calculated) if
+                       buses[i].number != self.slack_bus_number]
 
             # Test for convergence.
-            if self.is_convergent(dp_values, dq_values):
+            if self.is_convergent(s_error):
                 break
 
             # Compute Jacobian and its inverse.
-            jacobian = power_flow_jacobian.create_jacobian_matrix(buses, admittances, s_values, self.slack_bus_number)
+            jacobian = power_flow_jacobian.create_jacobian_matrix(
+                buses, admittances, s_calculated, self.slack_bus_number)
             invjacobian = numpy.linalg.inv(jacobian)
 
-            # Compute corrections.
-            corrections = -numpy.matmul(invjacobian, numpy.concatenate([dp_values, dq_values]))
-            theta_corrections = corrections[0:len(corrections) // 2]  # first half of corrections
-            voltage_corrections = corrections[len(corrections) // 2:]  # second half of corrections
+            # Compute corrections (an augmented vector of voltage angles and voltage magnitudes).
+            pq_error = [[s.real for s in s_error], [s.imag for s in s_error]]
+            corrections = -numpy.matmul(invjacobian, numpy.concatenate(pq_error))
+            theta_corrections = corrections[0:len(corrections) // 2]
+            voltage_corrections = corrections[len(corrections) // 2:]
 
             # Apply corrections.
             count = 0
@@ -242,22 +263,17 @@ class PowerFlow():
 
         return s_values
 
-    def is_convergent(self, real_power_mismatches, reactive_power_mismatches):
+    def is_convergent(self, errors):
         """Checks if the power flow has converged to a solution.
 
         Args:
-            real_power_mismatches: The real power mismatches.
-            reactive_power_mismatches: The reactive power mismatches.
+            errors: The power error terms.
 
         Returns:
             True if the power flow has converged to a solution; false otherwise.
         """
-        for mismatch in real_power_mismatches:
-            if mismatch >= self.max_active_power_mismatch_pu:
-                return False
-
-        for mismatch in reactive_power_mismatches:
-            if mismatch >= self.max_reactive_power_mismatch_pu:
+        for e in errors:
+            if e.real >= self.max_active_power_mismatch_pu or e.imag >= self.max_reactive_power_mismatch_pu:
                 return False
 
         return True

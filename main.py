@@ -64,7 +64,7 @@ DEFAULT_SLACK_BUS_NUMBER = 1
 DEFAULT_POWER_BASE_MVA = 100
 DEFAULT_MAX_MISMATCH_MW = 0.1
 DEFAULT_MAX_MISMATCH_MVAR = 0.1
-START_VOLTAGE = 1.0 + 0j
+START_VOLTAGE_PU = 1.0 + 0j
 
 
 def parse_arguments():
@@ -80,9 +80,9 @@ def parse_arguments():
                         help='The worksheet containing bus data.')
     parser.add_argument('--line_data_worksheet', default=DEFAULT_LINE_DATA_WORKSHEET,
                         help='The worksheet containing line data.')
-    parser.add_argument('--start_voltage_magnitude', type=float, default=numpy.abs(START_VOLTAGE),
-                        help='The initial voltage to use at each bus in V.')
-    parser.add_argument('--start_voltage_angle_deg', type=float, default=numpy.rad2deg(numpy.angle(START_VOLTAGE)),
+    parser.add_argument('--start_voltage_magnitude_pu', type=float, default=numpy.abs(START_VOLTAGE_PU),
+                        help='The initial voltage to use at each bus in per-unit.')
+    parser.add_argument('--start_voltage_angle_deg', type=float, default=numpy.rad2deg(numpy.angle(START_VOLTAGE_PU)),
                         help='The initial voltage angle to use at each bus in degrees.')
     parser.add_argument('--slack_bus_number', type=int, default=DEFAULT_SLACK_BUS_NUMBER,
                         help='The system slack bus number.')
@@ -105,7 +105,7 @@ def main():
     line_data = wb[args.line_data_worksheet]
 
     # Initialize the power flow.
-    start_voltage = args.start_voltage_magnitude * numpy.exp(1j * numpy.deg2rad(args.start_voltage_angle_deg))
+    start_voltage = args.start_voltage_magnitude_pu * numpy.exp(1j * numpy.deg2rad(args.start_voltage_angle_deg))
     pf = power_flow.PowerFlow(
         bus_data, line_data, args.slack_bus_number, start_voltage, args.power_base_mva, args.max_mismatch_mw,
         args.max_mismatch_mvar)
@@ -115,7 +115,7 @@ def main():
 
     # TODO(kjiwa): Report on any buses or lines exceeding their operating conditions.
     for bus in buses:
-        print('{}: {} pu at {} deg'.format(bus.number, numpy.abs(bus.voltage), numpy.rad2deg(numpy.angle(bus.voltage))))
+        print(bus)
 
     # Close input file.
     wb.close()
