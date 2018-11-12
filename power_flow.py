@@ -83,6 +83,9 @@ def execute_power_flow(
 
     Returns:
         An array of buses and their steady-state solutions.
+
+    Raises:
+        PowerFlowException: Indicates that bus data could not be loaded.
     """
     max_active_power_error_pu = max_error_mw / power_base_mva
     max_reactive_power_error_pu = max_error_mvar / power_base_mva
@@ -105,17 +108,28 @@ def execute_power_flow(
         # Create the error vector [dP dQ].
         del bus_errors[slack_bus_number]
         sorted_bus_errors = sorted(bus_errors.values(), key=operator.attrgetter('number'))
-        pq_error = ([bus.power.real for bus in sorted_bus_errors]
-                    + [bus.power.imag for bus in sorted_bus_errors if bus.type == BusType.LOAD])
+        pq_error = numpy.transpose([bus.power.real for bus in sorted_bus_errors]
+                                   + [bus.power.imag for bus in sorted_bus_errors if bus.type == BusType.LOAD])
 
         # Compute the corrections. There are (m + n) theta corrections and m magnitude corrections.
-        corrections = -numpy.matmul(invjacobian, numpy.transpose(pq_error))
+        corrections = -numpy.matmul(invjacobian, pq_error)
         theta_corrections = corrections[0:len(sorted_bus_errors)]
         voltage_corrections = corrections[len(sorted_bus_errors):]
 
         # Apply corrections.
         apply_theta_corrections(bus_states, theta_corrections, sorted_bus_errors)
         apply_voltage_corrections(bus_states, voltage_corrections, sorted_bus_errors)
+
+        # Recompute generator buses and the slack bus power.
+        for bus in bus_estimates.values():
+            if bus.type == BusType.GENERATOR:
+                bus_states[bus.number].power = bus_states[bus.number].power.real + 1j * bus.power.imag
+            elif bus.type == BusType.SLACK:
+                bus_states[bus.number].power = bus.power
+
+    # Convert power values to MVA.
+    for bus in bus_states.values():
+        bus.power *= power_base_mva
 
     return bus_states.values()
 
@@ -133,6 +147,9 @@ def read_bus_states(bus_data_ws, slack_bus_number, start_voltage, power_base_mva
 
     Returns:
         An array containing bus data.
+
+    Raises:
+        PowerFlowException: Indicates that bus data could not be loaded.
     """
     s_total = 0j
     buses = {}
@@ -156,7 +173,7 @@ def read_bus_states(bus_data_ws, slack_bus_number, start_voltage, power_base_mva
         if type == BusType.UNKNOWN:
             raise PowerFlowException('Unable to determine bus type for row {}'.format(i))
 
-        s = ((p_load + 1j * q_load) - p_gen) / power_base_mva
+        s = (p_gen - (p_load + 1j * q_load)) / power_base_mva
         s_total += s
         buses[bus_num] = Bus(type, bus_num, s, voltage)
 
