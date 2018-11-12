@@ -153,13 +153,16 @@ def read_bus_states(bus_data_ws, slack_bus_number, start_voltage, power_base_mva
     """
     s_total = 0j
     buses = {}
-    for i, row in enumerate(bus_data_ws.iter_rows(row_offset=1, max_row=count_rows(bus_data_ws))):
+    for i, row in enumerate(bus_data_ws.iter_rows(row_offset=1)):
         bus_num = row[0].value
         p_load = row[1].value or 0
         q_load = row[2].value or 0
         p_gen = row[3].value or 0
         voltage = row[4].value or start_voltage
         voltage += 0j  # force the voltage value to be complex
+
+        if not bus_num:
+            break
 
         # Determine the bus type.
         type = BusType.UNKNOWN
@@ -204,13 +207,18 @@ def read_admittance_matrix(line_data_ws, num_buses):
     Returns:
         A square matrix containing line-to-line admittances.
     """
-    admittances = numpy.zeros((num_buses, num_buses)) * 1j  # multiply by 1j to make values complex
+    admittances = numpy.zeros((num_buses, num_buses)) * 0j  # multiply by 0j to make values complex
 
     # Compute matrix entries.
-    for row in line_data_ws.iter_rows(row_offset=1, max_row=num_buses):
+    for row in line_data_ws.iter_rows(row_offset=1):
+        src = row[0].value
+        dst = row[1].value
+        if not src or not dst:
+            break
+
         # Subtract 1 since arrays start at 0, but buses start at 1.
-        src = row[0].value - 1
-        dst = row[1].value - 1
+        src -= 1
+        dst -= 1
 
         rtotal = row[2].value
         xtotal = row[3].value
@@ -284,28 +292,6 @@ def apply_voltage_corrections(bus_states, voltage_corrections, bus_order):
         bus_states[bus_number].voltage = magnitude * numpy.exp(1j * theta)
 
 
-def count_rows(ws):
-    """Counts the number of non-empty, contiguous rows in the worksheet.
-
-    This method is necessary because openpyxl.worksheet.worksheet.max_row does not always correctly detect empty
-    cells.
-
-    Args:
-        ws: The worksheet to read.
-
-    Returns:
-        The number of non-empty, contiguous rows.
-    """
-    n = 0
-    for row in ws.iter_rows():
-        if not row[0].value:
-            break
-
-        n += 1
-
-    return n
-
-
 def create_bus_estimates(bus_states, admittances):
     """Estimates the power injection at a particular bus.
 
@@ -353,7 +339,7 @@ def calculate_state_error(bus_states, bus_estimates):
     for bus_number in bus_states.keys():
         actual = bus_states[bus_number]
         estimate = bus_estimates[bus_number]
-        diff = estimate.power - actual.power
+        diff = actual.power - estimate.power
         errors[bus_number] = Bus(actual.type, bus_number, diff, actual.voltage)
 
     return errors
