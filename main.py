@@ -12,8 +12,8 @@ The input file is expected to have two worksheets: one for bus data, and the oth
 worksheet names are expected to be 'Bus data' and 'Line data,' but these names may be overridden at the command line.
 
 Bus data: The bus data worksheet should contain load and generation data for each bus in the system. Each bus is fully
-specified by four variables: real power consumption, reactive power consumption, voltage, and phase angle. At least two
-of these variables must be specified for each bus. The worksheet is expected to have the following structure:
+specified by four variables: real power delivered, reactive power delivered, voltage, and phase angle. At least two of
+these variables must be specified for each bus. The worksheet is expected to have the following structure:
 
     1. Bus number
     2. Real power consumed (MW)
@@ -108,12 +108,9 @@ def main():
 
     # Initialize the power flow.
     start_voltage = args.start_voltage_magnitude_pu * numpy.exp(1j * numpy.deg2rad(args.start_voltage_angle_deg))
-    pf = power_flow.PowerFlow(
+    buses = power_flow.execute_power_flow(
         bus_data, line_data, args.slack_bus_number, start_voltage, args.power_base_mva, args.max_mismatch_mw,
         args.max_mismatch_mvar)
-
-    # Execute the power flow.
-    buses = pf.execute()
 
     # TODO(kjiwa): Report on any buses or lines exceeding their operating conditions.
     output = io.StringIO()
