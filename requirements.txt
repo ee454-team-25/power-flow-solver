@@ -1,3 +1,0 @@
-namedlist
-numpy
-openpyxl
