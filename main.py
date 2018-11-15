@@ -1,6 +1,3 @@
-"""A program that analyzes and solves a power flow."""
-
-
 def main():
     pass
 
