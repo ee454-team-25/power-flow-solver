@@ -17,7 +17,7 @@ class TestPowerSystem(unittest.TestCase):
 
     def test_admittance_matrix(self):
         filename = 'data/Sample-Powell-3.1.xlsx'
-        builder = power_system_builder.ExcelPowerSystemBuilder(filename, 'Bus data', 'Line data')
+        builder = power_system_builder.ExcelPowerSystemBuilder(filename)
         system = builder.system()
 
         actual = system.admittance_matrix()

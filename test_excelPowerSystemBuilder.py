@@ -6,7 +6,7 @@ import unittest
 class TestExcelPowerSystemBuilder(unittest.TestCase):
     def test_buses(self):
         filename = 'data/Sample-Powell-3.1.xlsx'
-        builder = power_system_builder.ExcelPowerSystemBuilder(filename, 'Bus data', 'Line data')
+        builder = power_system_builder.ExcelPowerSystemBuilder(filename)
 
         actual = builder.buses()
         expected = {
@@ -21,7 +21,7 @@ class TestExcelPowerSystemBuilder(unittest.TestCase):
 
     def test_lines(self):
         filename = 'data/Sample-Powell-3.1.xlsx'
-        builder = power_system_builder.ExcelPowerSystemBuilder(filename, 'Bus data', 'Line data')
+        builder = power_system_builder.ExcelPowerSystemBuilder(filename)
 
         actual = builder.lines()
         expected = [

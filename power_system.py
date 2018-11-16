@@ -16,63 +16,20 @@ class BusType(enum.Enum):
     PQ = 2
 
 
-class Bus:
-    def __init__(self, number, loads, generators):
-        self._number = number
-        self._loads = loads
-        self._generators = generators
-
-    def __eq__(self, other):
-        if self.number != other.number:
-            return False
-
-        for a, b in zip(self.loads, other.loads):
-            if a.active_power != b.active_power or a.reactive_power != b.reactive_power:
-                return False
-
-        for a, b in zip(self.generators, other.generators):
-            if a.voltage != b.voltage or a.active_power != b.active_power:
-                return False
-
-        return True
-
-    @property
-    def number(self):
-        return self._number
-
-    @property
-    def loads(self):
-        return self._loads
-
-    @property
-    def generators(self):
-        return self._generators
-
+class Bus(collections.namedtuple('Bus', ['number', 'loads', 'generators'])):
     def type(self):
-        if self._generators:
+        if self.generators:
             return BusType.PV
-        elif self._loads:
+        elif self.loads:
             return BusType.PQ
 
         return BusType.UNKNOWN
 
 
-class PowerSystem:
-    def __init__(self, buses, lines):
-        self._buses = buses
-        self._lines = lines
-
-    @property
-    def buses(self):
-        return self._buses
-
-    @property
-    def lines(self):
-        return self._lines
-
+class PowerSystem(collections.namedtuple('PowerSystem', ['buses', 'lines'])):
     def admittance_matrix(self):
-        matrix = numpy.zeros((len(self._buses), len(self._buses))) * 1j
-        for line in self._lines:
+        matrix = numpy.zeros((len(self.buses), len(self.buses))) * 1j
+        for line in self.lines:
             src = line.source - 1
             dst = line.destination - 1
 

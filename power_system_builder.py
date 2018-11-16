@@ -1,9 +1,13 @@
 import openpyxl
 import power_system
 
+DEFAULT_BUS_DATA_WORKSHEET_NAME = 'Bus data'
+DEFAULT_LINE_DATA_WORKSHEET_NAME = 'Line data'
+
 
 class ExcelPowerSystemBuilder:
-    def __init__(self, filename, bus_data_worksheet_name, line_data_worksheet_name):
+    def __init__(self, filename, bus_data_worksheet_name=DEFAULT_BUS_DATA_WORKSHEET_NAME,
+                 line_data_worksheet_name=DEFAULT_LINE_DATA_WORKSHEET_NAME):
         self._workbook = openpyxl.load_workbook(filename, read_only=True)
         self._bus_data_worksheet = self._workbook[bus_data_worksheet_name]
         self._line_data_worksheet = self._workbook[line_data_worksheet_name]
