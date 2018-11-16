@@ -1,8 +1,12 @@
-import copy
+import collections
 import enum
 import numpy
 
 DEFAULT_SWING_BUS_NUMBER = 1
+
+_BusEstimate = collections.namedtuple('_BusEstimate',
+                                      ['bus', 'type', 'active_power', 'reactive_power', 'active_power_error',
+                                       'reactive_power_error'])
 
 
 class _BusType(enum.Enum):
@@ -24,10 +28,9 @@ class PowerFlowSolver:
         return self._has_converged
 
     def step(self):
-        # p_estimates = self._p_estimates()
-        # q_estimates = self._q_estimates()
-        # p_errors = self._p_errors(p_estimates)
-        # q_errors = self._q_errors(q_estimates)
+        # jacobian = self._jacobian(self._bus_power_estimates())
+        # corrections = self._corrections(jacobian, p_errors, q_errors)
+        # self._apply_corrections(corrections)
         pass
 
     def _bus_type(self, bus):
@@ -40,38 +43,14 @@ class PowerFlowSolver:
 
         return _BusType.UNKNOWN
 
-    def _p_estimates(self):
-        result = []
+    def _bus_power_estimates(self):
+        estimates = {}
         for src in self._system.buses:
             type = self._bus_type(src)
             if type not in (_BusType.PV, _BusType.PQ):
                 continue
 
             p = 0
-            v_k = numpy.abs(src.voltage)
-            theta_k = numpy.angle(src.voltage)
-
-            for dst in self._system.buses:
-                v_i = numpy.abs(dst.voltage)
-                theta_i = numpy.angle(dst.voltage)
-
-                y_ki = self._admittance_matrix[src.number - 1][dst.number - 1]
-                g_ki = y_ki.real
-                b_ki = y_ki.imag
-                theta_ki = theta_k - theta_i
-
-                p -= v_k * v_i * (g_ki * numpy.cos(theta_ki) + b_ki * numpy.sin(theta_ki))
-
-            result.append(p)
-
-        return result
-
-    def _q_estimates(self):
-        result = []
-        for src in self._system.buses:
-            if self._bus_type(src) != _BusType.PQ:
-                continue
-
             q = 0
             v_k = numpy.abs(src.voltage)
             theta_k = numpy.angle(src.voltage)
@@ -79,40 +58,75 @@ class PowerFlowSolver:
             for dst in self._system.buses:
                 v_i = numpy.abs(dst.voltage)
                 theta_i = numpy.angle(dst.voltage)
-
                 y_ki = self._admittance_matrix[src.number - 1][dst.number - 1]
                 g_ki = y_ki.real
                 b_ki = y_ki.imag
                 theta_ki = theta_k - theta_i
 
+                p -= v_k * v_i * (g_ki * numpy.cos(theta_ki) + b_ki * numpy.sin(theta_ki))
                 q -= v_k * v_i * (g_ki * numpy.sin(theta_ki) - b_ki * numpy.cos(theta_ki))
 
-            result.append(q)
-
-        return result
-
-    def _p_errors(self, p_estimates):
-        errors = copy.deepcopy(p_estimates)
-        index = 0
-        for bus in self._system.buses:
-            type = self._bus_type(bus)
+            p_error = p
+            q_error = q
             if type == _BusType.PV:
-                errors[index] += bus.active_power_injected
-                index += 1
+                p_error += src.active_power_injected
             elif type == _BusType.PQ:
-                errors[index] -= bus.active_power_consumed
-                index += 1
+                p_error -= src.active_power_consumed
+                q_error -= src.reactive_power_consumed
 
-        return errors
+            estimates[src.number] = _BusEstimate(src, type, p, q, p_error, q_error)
 
-    def _q_errors(self, q_estimates):
-        errors = copy.deepcopy(q_estimates)
-        index = 0
-        for bus in self._system.buses:
-            if self._bus_type(bus) != _BusType.PQ:
-                continue
+        return estimates
 
-            errors[index] -= bus.reactive_power_consumed
-            index += 1
+    def _jacobian_11(self, estimates):
+        j11 = numpy.zeros((len(estimates), len(estimates)))
+        for row, src_number in enumerate(estimates):
+            src = estimates[src_number]
+            k = src_number - 1
+            v_k = numpy.abs(src.bus.voltage)
+            theta_k = numpy.angle(src.bus.voltage)
+            q_k = src.reactive_power
 
-        return errors
+            for col, dst_number in enumerate(estimates):
+                dst = estimates[dst_number]
+                j = dst.bus.number - 1
+                v_j = numpy.abs(dst.bus.voltage)
+                theta_j = numpy.angle(dst.bus.voltage)
+                theta_kj = theta_k - theta_j
+
+                y_kj = self._admittance_matrix[k][j]
+                g_kj = y_kj.real
+                b_kj = y_kj.imag
+
+                if k != j:
+                    j11[row][col] = v_k * v_j * (g_kj * numpy.sin(theta_kj) - b_kj * numpy.cos(theta_kj))
+                else:
+                    j11[row][col] = -q_k - v_k ** 2 * b_kj
+
+        return j11
+
+    def _jacobian_12(self, estimates):
+        j12 = numpy.zeros((len(estimates), len(estimates)))
+        for row, src_number in enumerate(estimates):
+            src = estimates[src_number]
+            k = src_number - 1
+            v_k = numpy.abs(src.bus.voltage)
+            theta_k = numpy.angle(src.bus.voltage)
+            p_k = src.active_power
+
+            for col, dst_number in enumerate(estimates):
+                dst = estimates[dst_number]
+                j = dst.number - 1
+                theta_j = numpy.angle(dst.bus.voltage)
+                theta_kj = theta_k - theta_j
+
+                y_kj = self._admittance_matrix[k][j]
+                g_kj = y_kj.real
+                b_kj = y_kj.imag
+
+                if k != j:
+                    j12[row][col] = v_k * (g_kj * numpy.cos(theta_kj) + b_kj * numpy.sin(theta_kj))
+                else:
+                    j12[row][col] = p_k / v_k + g_kj * v_k
+
+        return j12

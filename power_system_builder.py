@@ -27,7 +27,6 @@ class ExcelPowerSystemBuilder:
             p_load = (row[1].value or 0) / self._power_base
             q_load = (row[2].value or 0) / self._power_base
             p_generator = (row[3].value or 0) / self._power_base
-
             p_voltage = row[4].value or self._start_voltage
             result.append(power_system.Bus(bus_number, p_load, q_load, p_generator, p_voltage))
 
@@ -44,7 +43,6 @@ class ExcelPowerSystemBuilder:
             r_distributed = row[2].value or 0
             x_distributed = row[3].value or 0
             z_distributed = r_distributed + 1j * x_distributed
-
             y_shunt = 1j * row[4].value or 0j
             max_power = row[5].value
 
