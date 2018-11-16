@@ -35,7 +35,7 @@ class PowerFlowSolver:
             return _BusType.SWING
         elif bus.active_power_injected:
             return _BusType.PV
-        elif bus.active_power_consumed:
+        elif bus.active_power_consumed or bus.reactive_power_consumed:
             return _BusType.PQ
 
         return _BusType.UNKNOWN

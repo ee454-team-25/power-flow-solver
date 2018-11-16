@@ -10,11 +10,11 @@ class TestExcelPowerSystemBuilder(unittest.TestCase):
 
         actual = builder.build_buses()
         expected = [
-            power_system.Bus(1, None, None, None, 1),
-            power_system.Bus(2, 0.4, 0.2, None, 1),
-            power_system.Bus(3, 0.25, 0.15, None, 1),
-            power_system.Bus(4, 0.4, 0.2, None, 1),
-            power_system.Bus(5, 0.5, 0.2, None, 1)
+            power_system.Bus(1, 0, 0, 0, 1),
+            power_system.Bus(2, 0.4, 0.2, 0, 1),
+            power_system.Bus(3, 0.25, 0.15, 0, 1),
+            power_system.Bus(4, 0.4, 0.2, 0, 1),
+            power_system.Bus(5, 0.5, 0.2, 0, 1)
         ]
 
         self.assertListEqual(expected, actual)

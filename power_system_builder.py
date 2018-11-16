@@ -24,9 +24,9 @@ class ExcelPowerSystemBuilder:
             if not bus_number:
                 break
 
-            p_load = row[1].value / self._power_base if row[1].value else None
-            q_load = row[2].value / self._power_base if row[2].value else None
-            p_generator = row[3].value / self._power_base if row[3].value else None
+            p_load = (row[1].value or 0) / self._power_base
+            q_load = (row[2].value or 0) / self._power_base
+            p_generator = (row[3].value or 0) / self._power_base
 
             p_voltage = row[4].value or self._start_voltage
             result.append(power_system.Bus(bus_number, p_load, q_load, p_generator, p_voltage))
