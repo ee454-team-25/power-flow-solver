@@ -1,29 +1,12 @@
 import collections
-import enum
 import numpy
-
-Load = collections.namedtuple('Load', ['active_power', 'reactive_power'])
-
-Generator = collections.namedtuple('Generator', ['voltage', 'active_power'])
 
 Line = collections.namedtuple('Line',
                               ['source', 'destination', 'distributed_impedance', 'shunt_admittance', 'max_power'])
 
-
-class BusType(enum.Enum):
-    UNKNOWN = 0
-    PV = 1
-    PQ = 2
-
-
-class Bus(collections.namedtuple('Bus', ['number', 'loads', 'generators'])):
-    def type(self):
-        if self.generators:
-            return BusType.PV
-        elif self.loads:
-            return BusType.PQ
-
-        return BusType.UNKNOWN
+Bus = collections.namedtuple('Bus',
+                             ['number', 'active_power_consumed', 'reactive_power_consumed', 'active_power_injected',
+                              'voltage'])
 
 
 class PowerSystem(collections.namedtuple('PowerSystem', ['buses', 'lines'])):

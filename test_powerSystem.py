@@ -5,20 +5,10 @@ import unittest
 
 
 class TestPowerSystem(unittest.TestCase):
-    def test_bus_type(self):
-        bus = power_system.Bus(1, [], [])
-        self.assertEqual(power_system.BusType.UNKNOWN, bus.type())
-
-        bus.loads.append(power_system.Load(1, 2))
-        self.assertEqual(power_system.BusType.PQ, bus.type())
-
-        bus.generators.append(power_system.Generator(1, 3))
-        self.assertEqual(power_system.BusType.PV, bus.type())
-
     def test_admittance_matrix(self):
         filename = 'data/Sample-Powell-3.1.xlsx'
         builder = power_system_builder.ExcelPowerSystemBuilder(filename)
-        system = builder.system()
+        system = builder.build_system()
 
         actual = system.admittance_matrix()
         expected = numpy.array([

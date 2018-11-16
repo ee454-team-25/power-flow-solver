@@ -8,22 +8,22 @@ class TestExcelPowerSystemBuilder(unittest.TestCase):
         filename = 'data/Sample-Powell-3.1.xlsx'
         builder = power_system_builder.ExcelPowerSystemBuilder(filename)
 
-        actual = builder.buses()
-        expected = {
-            1: power_system.Bus(1, [], []),
-            2: power_system.Bus(2, [power_system.Load(40, 20)], []),
-            3: power_system.Bus(3, [power_system.Load(25, 15)], []),
-            4: power_system.Bus(4, [power_system.Load(40, 20)], []),
-            5: power_system.Bus(5, [power_system.Load(50, 20)], [])
-        }
+        actual = builder.build_buses()
+        expected = [
+            power_system.Bus(1, None, None, None, 1),
+            power_system.Bus(2, 0.4, 0.2, None, 1),
+            power_system.Bus(3, 0.25, 0.15, None, 1),
+            power_system.Bus(4, 0.4, 0.2, None, 1),
+            power_system.Bus(5, 0.5, 0.2, None, 1)
+        ]
 
-        self.assertDictEqual(expected, actual)
+        self.assertListEqual(expected, actual)
 
     def test_lines(self):
         filename = 'data/Sample-Powell-3.1.xlsx'
         builder = power_system_builder.ExcelPowerSystemBuilder(filename)
 
-        actual = builder.lines()
+        actual = builder.build_lines()
         expected = [
             power_system.Line(1, 2, 0.05 + 0.11j, 0.02j, None),
             power_system.Line(1, 3, 0.05 + 0.11j, 0.02j, None),
