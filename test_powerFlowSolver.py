@@ -62,15 +62,15 @@ class TestPowerFlowSolver(unittest.TestCase):
         actual = solver._jacobian_21(solver._bus_power_estimates())
         numpy.testing.assert_array_almost_equal(expected, actual)
 
-    # def test_jacobian_22(self):
-    #     filename = 'data/Sample-Powell-3.1.xlsx'
-    #     builder = power_system_builder.ExcelPowerSystemBuilder(filename)
-    #     system = builder.build_system()
-    #     solver = power_flow_solver.PowerFlowSolver(system)
-    #
-    #     expected = [[26.03095, -9.278350, 0, -9.278350],
-    #                 [-9.278350, 23.08406, -6.341464, 0],
-    #                 [0, -6.341464, 15.56981, -9.278350],
-    #                 [-9.278350, 0, -9.278350, 29.45561]]
-    #     actual = solver._jacobian_22(solver._bus_power_estimates())
-    #     numpy.testing.assert_array_almost_equal(expected, actual)
+    def test_jacobian_22(self):
+        filename = 'data/Sample-Powell-3.1.xlsx'
+        builder = power_system_builder.ExcelPowerSystemBuilder(filename)
+        system = builder.build_system()
+        solver = power_flow_solver.PowerFlowSolver(system)
+
+        expected = [[26.090948, -9.278351, 0, -9.278351],
+                    [-9.278351, 23.154061, -6.341463, 0],
+                    [0, -6.341463, 15.619814, -9.278351],
+                    [-9.278351, 0, -9.278351, 29.515605]]
+        actual = solver._jacobian_22(solver._bus_power_estimates())
+        numpy.testing.assert_array_almost_equal(expected, actual)

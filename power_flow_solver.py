@@ -163,3 +163,32 @@ class PowerFlowSolver:
                     j21[row][col] = p_k - g_kj * v_k ** 2
 
         return j21
+
+    def _jacobian_22(self, estimates):
+        pq_estimates = {estimate.bus.number: estimate for estimate in estimates.values()
+                        if self._bus_type(estimate.bus) == _BusType.PQ}
+
+        j22 = numpy.zeros((len(pq_estimates), len(pq_estimates)))
+        for row, src_number in enumerate(estimates):
+            src = estimates[src_number]
+            k = src_number - 1
+            v_k = numpy.abs(src.bus.voltage)
+            theta_k = numpy.angle(src.bus.voltage)
+            q_k = src.reactive_power
+
+            for col, dst_number in enumerate(pq_estimates):
+                dst = pq_estimates[dst_number]
+                j = dst.bus.number - 1
+                theta_j = numpy.angle(dst.bus.voltage)
+                theta_kj = theta_k - theta_j
+
+                y_kj = self._admittance_matrix[k][j]
+                g_kj = y_kj.real
+                b_kj = y_kj.imag
+
+                if k != j:
+                    j22[row][col] = v_k * (g_kj * numpy.sin(theta_kj) - b_kj * numpy.cos(theta_kj))
+                else:
+                    j22[row][col] = q_k / v_k - b_kj * v_k
+
+        return j22
