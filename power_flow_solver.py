@@ -78,6 +78,15 @@ class PowerFlowSolver:
 
         return estimates
 
+    def _jacobian(self, estimates):
+        j11 = self._jacobian_11(estimates)
+        j12 = self._jacobian_12(estimates)
+        j21 = self._jacobian_21(estimates)
+        j22 = self._jacobian_22(estimates)
+        j1 = numpy.concatenate([j11, j12], axis=1)
+        j2 = numpy.concatenate([j21, j22], axis=1)
+        return numpy.concatenate([j1, j2], axis=0)
+
     def _jacobian_11(self, estimates):
         j11 = numpy.zeros((len(estimates), len(estimates)))
         for row, src_number in enumerate(estimates):
