@@ -106,9 +106,12 @@ class PowerFlowSolver:
         return j11
 
     def _jacobian_12(self, estimates):
-        j12 = numpy.zeros((len(estimates), len(estimates)))
-        for row, src_number in enumerate(estimates):
-            src = estimates[src_number]
+        pq_estimates = {estimate.bus.number: estimate for estimate in estimates.values()
+                        if self._bus_type(estimate.bus) == _BusType.PQ}
+
+        j12 = numpy.zeros((len(pq_estimates), len(estimates)))
+        for row, src_number in enumerate(pq_estimates):
+            src = pq_estimates[src_number]
             k = src_number - 1
             v_k = numpy.abs(src.bus.voltage)
             theta_k = numpy.angle(src.bus.voltage)
