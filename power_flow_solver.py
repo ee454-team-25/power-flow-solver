@@ -116,7 +116,7 @@ class PowerFlowSolver:
 
             for col, dst_number in enumerate(estimates):
                 dst = estimates[dst_number]
-                j = dst.number - 1
+                j = dst.bus.number - 1
                 theta_j = numpy.angle(dst.bus.voltage)
                 theta_kj = theta_k - theta_j
 

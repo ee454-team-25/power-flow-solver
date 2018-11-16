@@ -36,18 +36,18 @@ class TestPowerFlowSolver(unittest.TestCase):
         actual = solver._jacobian_11(solver._bus_power_estimates())
         numpy.testing.assert_array_almost_equal(expected, actual)
 
-    # def test_jacobian_12(self):
-    #     filename = 'data/Sample-Powell-3.1.xlsx'
-    #     builder = power_system_builder.ExcelPowerSystemBuilder(filename)
-    #     system = builder.build_system()
-    #     solver = power_flow_solver.PowerFlowSolver(system)
-    #
-    #     expected = [[11.672080, -4.123711, 0, -4.123711],
-    #                 [-4.123711, 10.475198, -2.926829, 0],
-    #                 [0, -2.926829, 7.050541, -4.123711],
-    #                 [-4.123711, 0, -4.123711, 12.357011]]
-    #     actual = solver._jacobian_12(solver._bus_power_estimates())
-    #     numpy.testing.assert_array_almost_equal(expected, actual)
+    def test_jacobian_12(self):
+        filename = 'data/Sample-Powell-3.1.xlsx'
+        builder = power_system_builder.ExcelPowerSystemBuilder(filename)
+        system = builder.build_system()
+        solver = power_flow_solver.PowerFlowSolver(system)
+
+        expected = [[11.672080, -4.123711, 0, -4.123711],
+                    [-4.123711, 10.475198, -2.926829, 0],
+                    [0, -2.926829, 7.050541, -4.123711],
+                    [-4.123711, 0, -4.123711, 12.357011]]
+        actual = solver._jacobian_12(solver._bus_power_estimates())
+        numpy.testing.assert_array_almost_equal(expected, actual)
 
     # def test_jacobian_21(self):
     #     filename = 'data/Sample-Powell-3.1.xlsx'
