@@ -1,5 +1,6 @@
 import argparse
 import numpy
+import power_flow_solver
 import power_system_builder
 
 DEFAULT_INPUT_WORKBOOK = 'data/Data.xlsx'
@@ -21,7 +22,7 @@ def parse_arguments():
                         help='The initial voltage magnitude in volts to use when solving the power flow.')
     parser.add_argument('--start_voltage_angle', default=numpy.rad2deg(numpy.angle(DEFAULT_START_VOLTAGE)),
                         help='The initial voltage angle in degrees to use when solving the power flow.')
-    parser.add_argument('--power_base', default=DEFAULT_POWER_BASE, help='The base power quantity in megawatts.')
+    parser.add_argument('--power_base', default=DEFAULT_POWER_BASE, help='The base power quantity in MVA.')
     return parser.parse_args()
 
 
@@ -32,7 +33,11 @@ def main():
     builder = power_system_builder.ExcelPowerSystemBuilder(
         args.input_workbook, args.bus_data_worksheet, args.line_data_worksheet, start_voltage, args.power_base)
     system = builder.build_system()
-    print(system)
+
+    solver = power_flow_solver.PowerFlowSolver(system)
+    while not solver.has_converged:
+        solver.step()
+        break
 
 
 if __name__ == '__main__':
