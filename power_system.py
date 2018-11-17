@@ -1,12 +1,13 @@
 import collections
+import namedlist
 import numpy
 
 Line = collections.namedtuple('Line',
                               ['source', 'destination', 'distributed_impedance', 'shunt_admittance', 'max_power'])
 
-Bus = collections.namedtuple('Bus',
-                             ['number', 'active_power_consumed', 'reactive_power_consumed', 'active_power_injected',
-                              'voltage'])
+Bus = namedlist.namedlist('Bus',
+                          ['number', 'active_power_consumed', 'reactive_power_consumed', 'active_power_injected',
+                           'voltage'])
 
 
 class PowerSystem(collections.namedtuple('PowerSystem', ['buses', 'lines'])):
