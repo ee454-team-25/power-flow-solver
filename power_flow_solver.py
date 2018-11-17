@@ -28,8 +28,11 @@ class PowerFlowSolver:
         return self._has_converged
 
     def step(self):
-        # jacobian = self._jacobian(self._bus_power_estimates())
-        # corrections = self._corrections(jacobian, p_errors, q_errors)
+        # estimates = self._bus_power_estimates()
+        # pq_estimates = {i.bus.number: i for i in estimates if i.type == power_flow_solver._BusType.PQ}
+        #
+        # jacobian = self._jacobian(estimates, pq_estimates)
+        # corrections = self._corrections(jacobian, estimates, pq_estimates)
         # self._apply_corrections(corrections)
         pass
 
@@ -78,11 +81,11 @@ class PowerFlowSolver:
 
         return estimates
 
-    def _jacobian(self, estimates):
+    def _jacobian(self, estimates, pq_estimates):
         j11 = self._jacobian_11(estimates)
-        j12 = self._jacobian_12(estimates)
-        j21 = self._jacobian_21(estimates)
-        j22 = self._jacobian_22(estimates)
+        j12 = self._jacobian_12(estimates, pq_estimates)
+        j21 = self._jacobian_21(estimates, pq_estimates)
+        j22 = self._jacobian_22(pq_estimates)
         j1 = numpy.concatenate([j11, j12], axis=1)
         j2 = numpy.concatenate([j21, j22], axis=1)
         return numpy.concatenate([j1, j2], axis=0)
@@ -114,10 +117,7 @@ class PowerFlowSolver:
 
         return j11
 
-    def _jacobian_12(self, estimates):
-        pq_estimates = {estimate.bus.number: estimate for estimate in estimates.values()
-                        if self._bus_type(estimate.bus) == _BusType.PQ}
-
+    def _jacobian_12(self, estimates, pq_estimates):
         j12 = numpy.zeros((len(pq_estimates), len(estimates)))
         for row, src_number in enumerate(pq_estimates):
             src = pq_estimates[src_number]
@@ -143,10 +143,7 @@ class PowerFlowSolver:
 
         return j12
 
-    def _jacobian_21(self, estimates):
-        pq_estimates = {estimate.bus.number: estimate for estimate in estimates.values()
-                        if self._bus_type(estimate.bus) == _BusType.PQ}
-
+    def _jacobian_21(self, estimates, pq_estimates):
         j21 = numpy.zeros((len(estimates), len(pq_estimates)))
         for row, src_number in enumerate(estimates):
             src = estimates[src_number]
@@ -173,13 +170,10 @@ class PowerFlowSolver:
 
         return j21
 
-    def _jacobian_22(self, estimates):
-        pq_estimates = {estimate.bus.number: estimate for estimate in estimates.values()
-                        if self._bus_type(estimate.bus) == _BusType.PQ}
-
+    def _jacobian_22(self, pq_estimates):
         j22 = numpy.zeros((len(pq_estimates), len(pq_estimates)))
-        for row, src_number in enumerate(estimates):
-            src = estimates[src_number]
+        for row, src_number in enumerate(pq_estimates):
+            src = pq_estimates[src_number]
             k = src_number - 1
             v_k = numpy.abs(src.bus.voltage)
             theta_k = numpy.angle(src.bus.voltage)
@@ -201,3 +195,9 @@ class PowerFlowSolver:
                     j22[row][col] = q_k / v_k - b_kj * v_k
 
         return j22
+
+    def _corrections(self, jacobian, estimates, pq_estimates):
+        p_errors = [i.active_power_error for i in estimates.values()]
+        q_errors = [i.reactive_power_error for i in pq_estimates.values()]
+        errors = numpy.transpose([p_errors + q_errors])
+        return numpy.matmul(numpy.linalg.inv(jacobian), errors)
