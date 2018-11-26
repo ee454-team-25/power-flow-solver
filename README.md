@@ -14,11 +14,11 @@ The program accepts the following arguments:
 * bus_data_worksheet: The name of the worksheet containing bus data (default: "Bus data").
 * line_data_worksheet: The name of the worksheet containing line data (default: "Line data").
 * start_voltage_magnitude: The initial voltage in per-unit to set for each unknown bus voltage (default: 1 pu).
-* start_voltage_angle_deg: The initial voltage phase angle in degrees to set for each unknown bus voltage (default: 0 degrees).
+* start_voltage_angle: The initial voltage phase angle in degrees to set for each unknown bus voltage (default: 0 degrees).
 * slack_bus_number: The slack bus number (default: 1).
-* power_base_mva: The power base in MVA (default: 100).
-* max_mismatch_mw: The maximum allowed real power mismatch in MW (default: 0.1).
-* max_mismatch_mvar: The maximum allowed reactive power mismatch in Mvar (default: 0.1).
+* power_base: The power base in MVA (default: 100).
+* max_active_power_error: The maximum allowed real power mismatch in MW (default: 0.1).
+* max_reactive_power_error: The maximum allowed reactive power mismatch in Mvar (default: 0.1).
 
 ### Input Format
 

@@ -34,7 +34,7 @@ have the following structure:
 
 Program arguments: In addition to bus and line data, power flow analysis requires several parameters to be specified:
 
-    1. Slack bus: A particular bus should be selected as the slack bus. The power consumption at this node is set to
+    1. Swing bus: A particular bus should be selected as the swing bus. The power consumption at this node is set to
        balance all power consumption and generation in the system. By default, the first bus is selected.
 
     2. Power base: The calculations executed during analysis assume that system data is represented in per-unit
@@ -60,6 +60,7 @@ DEFAULT_BUS_DATA_WORKSHEET_NAME = 'Bus data'
 DEFAULT_LINE_DATA_WORKSHEET_NAME = 'Line data'
 
 # Power flow constants.
+DEFAULT_SWING_BUS_NUMBER = 1
 DEFAULT_START_VOLTAGE = 1 + 0j
 DEFAULT_POWER_BASE = 100
 DEFAULT_MAX_ACTIVE_POWER_ERROR = 0.1
@@ -79,6 +80,7 @@ def parse_arguments():
                         help='The name of the worksheet containing bus data.')
     parser.add_argument('--line_data_worksheet', default=DEFAULT_LINE_DATA_WORKSHEET_NAME,
                         help='The name of the worksheet containing line data.')
+    parser.add_argument('--swing_bus_number', type=int, default=DEFAULT_SWING_BUS_NUMBER, help='The swing bus number.')
     parser.add_argument('--start_voltage_magnitude', type=float, default=numpy.abs(DEFAULT_START_VOLTAGE),
                         help='The initial voltage magnitude in volts to use when solving the power flow.')
     parser.add_argument('--start_voltage_angle', type=float, default=numpy.rad2deg(numpy.angle(DEFAULT_START_VOLTAGE)),
@@ -102,7 +104,8 @@ def main():
     system = builder.build_system()
 
     # Initialize and solve the power flow.
-    solver = power_flow_solver.PowerFlowSolver(system, args.max_active_power_error, args.max_reactive_power_error)
+    solver = power_flow_solver.PowerFlowSolver(
+        system, args.swing_bus_number, args.max_active_power_error, args.max_reactive_power_error)
     while not solver.has_converged():
         solver.step()
 
