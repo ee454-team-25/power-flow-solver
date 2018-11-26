@@ -18,9 +18,9 @@ class TestPowerFlowSolver(unittest.TestCase):
 
         actual = solver._bus_power_estimates()
         p_actual = [estimate.active_power_error for estimate in actual.values()
-                    if estimate.type in (power_flow_solver._BusType.PQ, power_flow_solver._BusType.PV)]
+                    if estimate.bus_type in (power_flow_solver._BusType.PQ, power_flow_solver._BusType.PV)]
         q_actual = [estimate.reactive_power_error for estimate in actual.values()
-                    if estimate.type == power_flow_solver._BusType.PQ]
+                    if estimate.bus_type == power_flow_solver._BusType.PQ]
 
         numpy.testing.assert_array_almost_equal(p_expected, p_actual)
         numpy.testing.assert_array_almost_equal(q_expected, q_actual)

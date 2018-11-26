@@ -1,6 +1,30 @@
+"""A module that builds power system objects from Excel files.
+
+The input is expected to be a spreadsheet with two worksheets: one specifying buses and another specifying lines. By
+default the worksheets are expected to be called "Bus data" and "Line data," but these values may be overridden.
+
+The bus data worksheet is expected to have a header row and data in the following format:
+
+    1. Bus number
+    2. Active power consumed in MW
+    3. Reactive power consumed in Mvar
+    4. Active power injected in MW
+    5. Voltage at the bus in per-unit
+
+The line data worksheet is expected to have a header row and data in the following format:
+
+    1. The source bus number
+    2. The destination bus number
+    3. The distributed resistance in per-unit
+    4. The distributed reactance in per-unit
+    5. The shunt susceptance in per-unit
+    6. The maximum power rating of the line in MVA
+"""
+
 import openpyxl
 import power_system
 
+# Builder defaults.
 FLAT_START_VOLTAGE = 1 + 0j
 DEFAULT_BUS_DATA_WORKSHEET_NAME = 'Bus data'
 DEFAULT_LINE_DATA_WORKSHEET_NAME = 'Line data'
@@ -11,6 +35,15 @@ class ExcelPowerSystemBuilder:
     def __init__(self, filename, bus_data_worksheet_name=DEFAULT_BUS_DATA_WORKSHEET_NAME,
                  line_data_worksheet_name=DEFAULT_LINE_DATA_WORKSHEET_NAME, start_voltage=FLAT_START_VOLTAGE,
                  power_base=DEFAULT_POWER_BASE):
+        """Initializes the power system builder.
+
+        Args:
+            filename: The Excel workbook filename.
+            bus_data_worksheet_name: The name of the worksheet containing bus data.
+            line_data_worksheet_name: The name of the worksheet containing line data.
+            start_voltage: The start voltage for PQ buses.
+            power_base: The power base in MVA.
+        """
         self._workbook = openpyxl.load_workbook(filename, read_only=True)
         self._bus_data_worksheet = self._workbook[bus_data_worksheet_name]
         self._line_data_worksheet = self._workbook[line_data_worksheet_name]
@@ -18,6 +51,7 @@ class ExcelPowerSystemBuilder:
         self._power_base = power_base
 
     def build_buses(self):
+        """Builds a list of buses in the system."""
         result = []
         for row in self._bus_data_worksheet.iter_rows(row_offset=1):
             bus_number = row[0].value
@@ -33,6 +67,7 @@ class ExcelPowerSystemBuilder:
         return result
 
     def build_lines(self):
+        """Builds a list of lines in the system."""
         result = []
         for row in self._line_data_worksheet.iter_rows(row_offset=1):
             source_bus_number = row[0].value
@@ -52,4 +87,5 @@ class ExcelPowerSystemBuilder:
         return result
 
     def build_system(self):
+        """Builds a power system."""
         return power_system.PowerSystem(self.build_buses(), self.build_lines())
