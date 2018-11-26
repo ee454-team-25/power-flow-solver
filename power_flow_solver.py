@@ -3,10 +3,11 @@ import enum
 import numpy
 
 DEFAULT_SWING_BUS_NUMBER = 1
+DEFAULT_MAX_ACTIVE_POWER_ERROR = 0.001
+DEFAULT_MAX_REACTIVE_POWER_ERROR = 0.001
 
-_BusEstimate = collections.namedtuple('_BusEstimate',
-                                      ['bus', 'type', 'active_power', 'reactive_power', 'active_power_error',
-                                       'reactive_power_error'])
+_BusEstimate = collections.namedtuple(
+    '_BusEstimate', ['bus', 'type', 'active_power', 'reactive_power', 'active_power_error', 'reactive_power_error'])
 
 
 class _BusType(enum.Enum):
@@ -17,27 +18,41 @@ class _BusType(enum.Enum):
 
 
 class PowerFlowSolver:
-    def __init__(self, system, swing_bus_number=DEFAULT_SWING_BUS_NUMBER):
+    def __init__(self, system, swing_bus_number=DEFAULT_SWING_BUS_NUMBER,
+                 max_active_power_error=DEFAULT_MAX_ACTIVE_POWER_ERROR,
+                 max_reactive_power_error=DEFAULT_MAX_REACTIVE_POWER_ERROR):
         self._system = system
         self._swing_bus_number = swing_bus_number
+        self._max_active_power_error = max_active_power_error
+        self._max_reactive_power_error = max_reactive_power_error
 
         self._admittance_matrix = self._system.admittance_matrix()
         self._estimates = None
         self._pq_estimates = None
 
-    def compute_estimates(self):
-        self._estimates = self._bus_power_estimates()
-        self._pq_estimates = {i.bus.number: i for i in self._estimates.values() if i.type == _BusType.PQ}
-
-    @property
     def has_converged(self):
+        if not self._estimates or not self._pq_estimates:
+            return False
+
+        for estimate in self._estimates.values():
+            if numpy.abs(estimate.active_power_error) > self._max_active_power_error:
+                return False
+
+        for estimate in self._pq_estimates.values():
+            if numpy.abs(estimate.reactive_power_error) > self._max_reactive_power_error:
+                return False
+
         return True
 
     def step(self):
-        self.compute_estimates()
+        self._compute_estimates()
         jacobian = self._jacobian()
         corrections = self._corrections(jacobian)
         self._apply_corrections(corrections)
+
+    def _compute_estimates(self):
+        self._estimates = self._bus_power_estimates()
+        self._pq_estimates = {i.bus.number: i for i in self._estimates.values() if i.type == _BusType.PQ}
 
     def _bus_type(self, bus):
         if bus.number == self._swing_bus_number:
@@ -52,8 +67,8 @@ class PowerFlowSolver:
     def _bus_power_estimates(self):
         estimates = {}
         for src in self._system.buses:
-            type = self._bus_type(src)
-            if type not in (_BusType.PV, _BusType.PQ):
+            bus_type = self._bus_type(src)
+            if bus_type not in (_BusType.PV, _BusType.PQ):
                 continue
 
             p = 0
@@ -74,13 +89,13 @@ class PowerFlowSolver:
 
             p_error = p
             q_error = q
-            if type == _BusType.PV:
+            if bus_type == _BusType.PV:
                 p_error += src.active_power_injected
-            elif type == _BusType.PQ:
+            elif bus_type == _BusType.PQ:
                 p_error -= src.active_power_consumed
                 q_error -= src.reactive_power_consumed
 
-            estimates[src.number] = _BusEstimate(src, type, p, q, p_error, q_error)
+            estimates[src.number] = _BusEstimate(src, bus_type, p, q, p_error, q_error)
 
         return estimates
 
@@ -116,21 +131,21 @@ class PowerFlowSolver:
                 if k != j:
                     j11[row][col] = v_k * v_j * (g_kj * numpy.sin(theta_kj) - b_kj * numpy.cos(theta_kj))
                 else:
-                    j11[row][col] = -q_k - v_k ** 2 * b_kj
+                    j11[row][col] = -q_k - (v_k ** 2) * b_kj
 
         return j11
 
     def _jacobian_12(self):
-        j12 = numpy.zeros((len(self._pq_estimates), len(self._estimates)))
-        for row, src_number in enumerate(self._pq_estimates):
-            src = self._pq_estimates[src_number]
+        j12 = numpy.zeros((len(self._estimates), len(self._pq_estimates)))
+        for row, src_number in enumerate(self._estimates):
+            src = self._estimates[src_number]
             k = src_number - 1
             v_k = numpy.abs(src.bus.voltage)
             theta_k = numpy.angle(src.bus.voltage)
             p_k = src.active_power
 
-            for col, dst_number in enumerate(self._estimates):
-                dst = self._estimates[dst_number]
+            for col, dst_number in enumerate(self._pq_estimates):
+                dst = self._pq_estimates[dst_number]
                 j = dst.bus.number - 1
                 theta_j = numpy.angle(dst.bus.voltage)
                 theta_kj = theta_k - theta_j
@@ -147,16 +162,16 @@ class PowerFlowSolver:
         return j12
 
     def _jacobian_21(self):
-        j21 = numpy.zeros((len(self._estimates), len(self._pq_estimates)))
-        for row, src_number in enumerate(self._estimates):
-            src = self._estimates[src_number]
+        j21 = numpy.zeros((len(self._pq_estimates), len(self._estimates)))
+        for row, src_number in enumerate(self._pq_estimates):
+            src = self._pq_estimates[src_number]
             k = src_number - 1
             v_k = numpy.abs(src.bus.voltage)
             theta_k = numpy.angle(src.bus.voltage)
             p_k = src.active_power
 
-            for col, dst_number in enumerate(self._pq_estimates):
-                dst = self._pq_estimates[dst_number]
+            for col, dst_number in enumerate(self._estimates):
+                dst = self._estimates[dst_number]
                 j = dst.bus.number - 1
                 v_j = numpy.abs(dst.bus.voltage)
                 theta_j = numpy.angle(dst.bus.voltage)
@@ -203,7 +218,8 @@ class PowerFlowSolver:
         p_errors = [i.active_power_error for i in self._estimates.values()]
         q_errors = [i.reactive_power_error for i in self._pq_estimates.values()]
         errors = numpy.transpose([p_errors + q_errors])
-        return numpy.matmul(numpy.linalg.inv(jacobian), errors)
+        corrections = numpy.matmul(numpy.linalg.inv(jacobian), errors)
+        return corrections.transpose()[0]
 
     def _apply_corrections(self, corrections):
         angle_corrections = corrections[0:len(self._estimates)]
