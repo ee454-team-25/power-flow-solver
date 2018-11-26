@@ -1,7 +1,7 @@
 """A program that analyzes and solves a power flow.
 
-This program reads bus and line data from an Excel file and executes a power flow analysis to determine bus voltages.
-A report about the system is then generated containing the following information:
+This program reads bus and line data from an Excel file and executes a power flow analysis to determine bus voltages. A
+report about the system is then generated containing the following information:
 
     1. The voltage (magnitude and angle) at each bus in the system.
     2. The active and reactive power produced by each generator in the system.
@@ -50,50 +50,44 @@ Program arguments: In addition to bus and line data, power flow analysis require
 """
 
 import argparse
-import csv
-import io
 import numpy
-import openpyxl
-import power_flow
+import power_flow_solver
+import power_system_builder
 
 # Input data constants.
 DEFAULT_INPUT_WORKBOOK = 'data/Data.xlsx'
-DEFAULT_BUS_DATA_WORKSHEET = 'Bus data'
-DEFAULT_LINE_DATA_WORKSHEET = 'Line data'
+DEFAULT_BUS_DATA_WORKSHEET_NAME = 'Bus data'
+DEFAULT_LINE_DATA_WORKSHEET_NAME = 'Line data'
 
 # Power flow constants.
-DEFAULT_SLACK_BUS_NUMBER = 1
-DEFAULT_POWER_BASE_MVA = 100
-DEFAULT_MAX_MISMATCH_MW = 0.1
-DEFAULT_MAX_MISMATCH_MVAR = 0.1
-START_VOLTAGE_PU = 1.0 + 0j
+DEFAULT_START_VOLTAGE = 1 + 0j
+DEFAULT_POWER_BASE = 100
+DEFAULT_MAX_ACTIVE_POWER_ERROR = 0.1
+DEFAULT_MAX_REACTIVE_POWER_ERROR = 0.1
 
 
 def parse_arguments():
     """Parses command line arguments.
 
     Returns:
-        An object containing program arguments.
+        And object containing program arguments.
     """
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_workbook', default=DEFAULT_INPUT_WORKBOOK,
-                        help='An Excel workbook containing input data.')
-    parser.add_argument('--bus_data_worksheet', default=DEFAULT_BUS_DATA_WORKSHEET,
-                        help='The worksheet containing bus data.')
-    parser.add_argument('--line_data_worksheet', default=DEFAULT_LINE_DATA_WORKSHEET,
-                        help='The worksheet containing line data.')
-    parser.add_argument('--start_voltage_magnitude_pu', type=float, default=numpy.abs(START_VOLTAGE_PU),
-                        help='The initial voltage to use at each bus in per-unit.')
-    parser.add_argument('--start_voltage_angle_deg', type=float, default=numpy.rad2deg(numpy.angle(START_VOLTAGE_PU)),
-                        help='The initial voltage angle to use at each bus in degrees.')
-    parser.add_argument('--slack_bus_number', type=int, default=DEFAULT_SLACK_BUS_NUMBER,
-                        help='The system slack bus number.')
-    parser.add_argument('--power_base_mva', type=float, default=DEFAULT_POWER_BASE_MVA,
-                        help='The base apparent power value for the system in MVA.')
-    parser.add_argument('--max_mismatch_mw', type=float, default=DEFAULT_MAX_MISMATCH_MW,
-                        help='The maximum real power mismatch in MW for convergence testing.')
-    parser.add_argument('--max_mismatch_mvar', type=float, default=DEFAULT_MAX_MISMATCH_MW,
-                        help='The maximum reactive power mismatch in Mvar for convergence testing.')
+                        help='An Excel workbook containing bus and line data.')
+    parser.add_argument('--bus_data_worksheet', default=DEFAULT_BUS_DATA_WORKSHEET_NAME,
+                        help='The name of the worksheet containing bus data.')
+    parser.add_argument('--line_data_worksheet', default=DEFAULT_LINE_DATA_WORKSHEET_NAME,
+                        help='The name of the worksheet containing line data.')
+    parser.add_argument('--start_voltage_magnitude', type=float, default=numpy.abs(DEFAULT_START_VOLTAGE),
+                        help='The initial voltage magnitude in volts to use when solving the power flow.')
+    parser.add_argument('--start_voltage_angle', type=float, default=numpy.rad2deg(numpy.angle(DEFAULT_START_VOLTAGE)),
+                        help='The initial voltage angle in degrees to use when solving the power flow.')
+    parser.add_argument('--power_base', type=float, default=DEFAULT_POWER_BASE, help='The base power quantity in MVA.')
+    parser.add_argument('--max_active_power_error', type=float, default=DEFAULT_MAX_ACTIVE_POWER_ERROR,
+                        help='The maximum allowed mismatch between computed and actual megawatts at each bus.')
+    parser.add_argument('--max_reactive_power_error', type=float, default=DEFAULT_MAX_REACTIVE_POWER_ERROR,
+                        help='The maximum allowed mismatch between computed and actual megavars at each bus.')
     return parser.parse_args()
 
 
@@ -101,29 +95,21 @@ def main():
     """Reads an input file containing system data and initiates power flow computations."""
     args = parse_arguments()
 
-    # Open input file.
-    wb = openpyxl.load_workbook(args.input_workbook, read_only=True)
-    bus_data = wb[args.bus_data_worksheet]
-    line_data = wb[args.line_data_worksheet]
+    # Build the power system from an input file.
+    start_voltage = args.start_voltage_magnitude * numpy.exp(1j * numpy.deg2rad(args.start_voltage_angle))
+    builder = power_system_builder.ExcelPowerSystemBuilder(
+        args.input_workbook, args.bus_data_worksheet, args.line_data_worksheet, start_voltage, args.power_base)
+    system = builder.build_system()
 
-    # Initialize the power flow.
-    start_voltage = args.start_voltage_magnitude_pu * numpy.exp(1j * numpy.deg2rad(args.start_voltage_angle_deg))
-    buses = power_flow.execute_power_flow(
-        bus_data, line_data, args.slack_bus_number, start_voltage, args.power_base_mva, args.max_mismatch_mw,
-        args.max_mismatch_mvar)
+    # Initialize and solve the power flow.
+    solver = power_flow_solver.PowerFlowSolver(system, args.max_active_power_error, args.max_reactive_power_error)
+    while not solver.has_converged():
+        solver.step()
 
-    # TODO(kjiwa): Report on any buses or lines exceeding their operating conditions.
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['Bus', 'Power', 'Voltage'])
-    for bus in buses:
-        v = '{:.3f} pu {:.3f} deg'.format(numpy.abs(bus.voltage), numpy.rad2deg(numpy.angle(bus.voltage)))
-        writer.writerow([bus.number, bus.power, v])
-
-    print(output.getvalue())
-
-    # Close input file.
-    wb.close()
+    # TODO(kjiwa): Compute power at each bus and along each line.
+    for bus in system.buses:
+        print(u'Bus: {}, Voltage: {:.4f}\u2220{:.4f} deg'.format(bus.number, numpy.abs(bus.voltage),
+                                                                 numpy.rad2deg(numpy.angle(bus.voltage))))
 
 
 if __name__ == '__main__':
