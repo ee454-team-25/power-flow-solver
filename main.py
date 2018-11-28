@@ -105,24 +105,21 @@ def main():
     system = builder.build_system()
 
     # Initialize and solve the power flow.
-    solver = power_flow_solver.PowerFlowSolver(
-        system, args.swing_bus_number, args.max_active_power_error, args.max_reactive_power_error)
+    solver = power_flow_solver.PowerFlowSolver(system, args.swing_bus_number,
+                                               args.max_active_power_error / args.power_base,
+                                               args.max_reactive_power_error / args.power_base)
+
+    # Iterate towards a solution.
     iteration = 0
     while not solver.has_converged():
         iteration += 1
         solver.step()
+        print(power_system_reporter.largest_power_mismatch_report(solver.estimates, args.power_base, iteration))
 
-        # Report on the buses with the largest active and reactive power mismatches.
-        print(power_system_reporter.LargestPowerMismatchReporter.report(solver.estimates, args.power_base, iteration))
-
-    # Report voltages at each bus.
-    print(power_system_reporter.BusVoltageReporter.report(system))
-
-    # Report the active and reactive power injected by each generator and synchronous condenser.
-    print(power_system_reporter.PowerInjectionReporter.report(system, solver.estimates, args.power_base))
-
-    # Report power across each transmission line.
-    print(power_system_reporter.LinePowerReporter.report(system, args.power_base))
+    # Produce system reports.
+    print(power_system_reporter.bus_voltage_report(system))
+    print(power_system_reporter.power_injection_report(system, solver.estimates, args.power_base))
+    print(power_system_reporter.line_power_report(system, args.power_base))
 
 
 if __name__ == '__main__':

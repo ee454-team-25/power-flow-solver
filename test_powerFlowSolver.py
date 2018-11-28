@@ -158,3 +158,16 @@ class TestPowerFlowSolver(unittest.TestCase):
                     [0, -3.8462, 5.5408]]
         actual = solver._jacobian_22()
         numpy.testing.assert_array_almost_equal(expected, actual, 4)
+
+    def test_nptel(self):
+        solver = TestPowerFlowSolver.build_solver('data/Sample-nptel.xlsx')
+        for _ in range(0, 10):
+            solver.step()
+
+        expected_magnitudes = [1.05, 0.9826, 0.9777, 0.9876, 1.02]
+        actual_magnitudes = [numpy.abs(i.voltage) for i in solver._system.buses]
+        numpy.testing.assert_array_almost_equal(expected_magnitudes, actual_magnitudes, 4)
+
+        expected_angles = [0, -5.0124, -7.1322, -7.3705, -3.2014]
+        actual_angles = [numpy.rad2deg(numpy.angle(i.voltage)) for i in solver._system.buses]
+        numpy.testing.assert_array_almost_equal(expected_angles, actual_angles, 4)

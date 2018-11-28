@@ -112,9 +112,11 @@ class PowerFlowSolver:
         """
         if bus.number == self._swing_bus_number:
             return BusType.SWING
-        elif bus.active_power_injected:
+
+        if bus.active_power_injected:
             return BusType.PV
-        elif bus.active_power_consumed or bus.reactive_power_consumed:
+
+        if bus.active_power_consumed or bus.reactive_power_consumed:
             return BusType.PQ
 
         return BusType.UNKNOWN
