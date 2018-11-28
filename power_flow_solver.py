@@ -89,6 +89,7 @@ class PowerFlowSolver:
         jacobian = self._jacobian()
         corrections = self._corrections(jacobian)
         self._apply_corrections(corrections)
+        self._update_swing_bus_power()
 
     def _compute_estimates(self):
         """Computes power injection estimates for each bus and splits out PQ buses."""
@@ -141,14 +142,8 @@ class PowerFlowSolver:
                 p -= v_k * v_i * (g_ki * numpy.cos(theta_ki) + b_ki * numpy.sin(theta_ki))
                 q -= v_k * v_i * (g_ki * numpy.sin(theta_ki) - b_ki * numpy.cos(theta_ki))
 
-            p_error = p
-            q_error = q
-            if bus_type == _BusType.PV:
-                p_error += src.active_power_injected
-            elif bus_type == _BusType.PQ:
-                p_error -= src.active_power_consumed
-                q_error -= src.reactive_power_consumed
-
+            p_error = p + src.active_power_injected - src.active_power_consumed
+            q_error = q - src.reactive_power_consumed
             estimates[src.number] = _BusEstimate(src, bus_type, p, q, p_error, q_error)
 
         return estimates
@@ -315,3 +310,19 @@ class PowerFlowSolver:
             magnitude = numpy.abs(e.bus.voltage) + c
             angle = numpy.angle(e.bus.voltage)
             e.bus.voltage = magnitude * numpy.exp(1j * angle)
+
+    def _update_swing_bus_power(self):
+        """Updates power values at the swing bus."""
+        p_total = sum([bus.active_power_injected - bus.active_power_consumed
+                       for bus in self._system.buses if bus.number != self._swing_bus_number])
+        q_total = sum([-bus.reactive_power_consumed
+                       for bus in self._system.buses if bus.number != self._swing_bus_number])
+
+        swing_bus = self._system.buses[self._swing_bus_number - 1]
+        swing_bus.reactive_power_consumed = -q_total
+        if p_total <= 0:
+            swing_bus.active_power_consumed = -p_total
+            swing_bus.active_power_injected = 0
+        else:
+            swing_bus.active_power_consumed = 0
+            swing_bus.active_power_injected = p_total
