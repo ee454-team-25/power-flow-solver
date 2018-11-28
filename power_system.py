@@ -1,7 +1,7 @@
 """A module containing a power system API.
 
 The main objects in this module are the Line, Bus, and PowerSystem objects. There are one-to-many relationships between
-a power system and its buses and lines. Each line connects two buses.
+a power system and its buses and lines. Each line connects two buses and there may be many lines between any two buses.
 
 This model is simplified to allow only one load or generator to be attached at each bus. Loads are specified by the
 power they consume, while generators are specified by the active power they inject and their controlled voltage.

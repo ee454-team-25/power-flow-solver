@@ -53,6 +53,7 @@ import argparse
 import numpy
 import power_flow_solver
 import power_system_builder
+import power_system_reporter
 
 # Input data constants.
 DEFAULT_INPUT_WORKBOOK = 'data/Data.xlsx'
@@ -109,10 +110,8 @@ def main():
     while not solver.has_converged():
         solver.step()
 
-    # TODO(kjiwa): Compute power at each bus and along each line.
-    for bus in system.buses:
-        print(u'Bus: {}, Voltage: {:.4f}\u2220{:.4f} deg'.format(bus.number, numpy.abs(bus.voltage),
-                                                                 numpy.rad2deg(numpy.angle(bus.voltage))))
+    print(power_system_reporter.BusVoltageReporter(system).report())
+    print(power_system_reporter.LinePowerReporter(system, args.power_base).report())
 
 
 if __name__ == '__main__':
