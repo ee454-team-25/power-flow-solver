@@ -4,6 +4,7 @@ Each reporter analyzes the power system and produces a tabular report as a strin
 """
 
 import numpy
+import power_flow_solver
 import tabulate
 
 TABULATE_FLOAT_FMT = '.4f'
@@ -20,10 +21,7 @@ class BusVoltageReporter:
             system: The power system being analyzed.
         """
         headers = ['Bus', 'Voltage (V)', 'Phase (deg)']
-        table = []
-        for bus in system.buses:
-            table.append([bus.number, numpy.abs(bus.voltage), numpy.rad2deg(numpy.angle(bus.voltage))])
-
+        table = [[bus.number, numpy.abs(bus.voltage), numpy.rad2deg(numpy.angle(bus.voltage))] for bus in system.buses]
         return tabulate.tabulate(table, headers=headers, floatfmt=TABULATE_FLOAT_FMT)
 
 
@@ -92,3 +90,23 @@ class LargestPowerMismatchReporter:
             s += '\n  Largest reactive power mismatch: {:.4f} Mvar (Bus {})'.format(max_q_error, max_q_error_bus)
 
         return s
+
+
+class PowerInjectionReporter:
+    """A reporter for power injection at PV buses."""
+
+    @staticmethod
+    def report(system, estimates, power_base):
+        """Reports the active and reactive power injection from each generator and synchronous consider.
+
+        Args:
+            estimates: A dict mapping bus numbers to estimates of its active power injection.
+            power_base: The power base in MVA.
+        """
+        headers = ['Bus', 'Active Power Injection (MW)', 'Reactive Power Injection (Mvar)']
+        table = []
+        for estimate in estimates.values():
+            q_injected = -(estimate.reactive_power - estimate.bus.reactive_power_consumed) * power_base
+            table.append([estimate.bus.number, estimate.bus.active_power_injected * power_base, q_injected])
+
+        return tabulate.tabulate(table, headers=headers, floatfmt=TABULATE_FLOAT_FMT)

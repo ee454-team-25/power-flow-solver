@@ -118,6 +118,9 @@ def main():
     # Report voltages at each bus.
     print(power_system_reporter.BusVoltageReporter.report(system))
 
+    # Report the active and reactive power injected by each generator and synchronous condenser.
+    print(power_system_reporter.PowerInjectionReporter.report(system, solver.estimates, args.power_base))
+
     # Report power across each transmission line.
     print(power_system_reporter.LinePowerReporter.report(system, args.power_base))
 

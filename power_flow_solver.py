@@ -30,7 +30,7 @@ _BusEstimate = collections.namedtuple(
     '_BusEstimate', ['bus', 'bus_type', 'active_power', 'reactive_power', 'active_power_error', 'reactive_power_error'])
 
 
-class _BusType(enum.Enum):
+class BusType(enum.Enum):
     """Bus type enumerations."""
     UNKNOWN = 0
     SWING = 1
@@ -99,7 +99,7 @@ class PowerFlowSolver:
     def _compute_estimates(self):
         """Computes power injection estimates for each bus and splits out PQ buses."""
         self._estimates = self._bus_power_estimates()
-        self._pq_estimates = {i.bus.number: i for i in self._estimates.values() if i.bus_type == _BusType.PQ}
+        self._pq_estimates = {i.bus.number: i for i in self._estimates.values() if i.bus_type == BusType.PQ}
 
     def _bus_type(self, bus):
         """Classifies a given bus based on which parameters specify it.
@@ -111,13 +111,13 @@ class PowerFlowSolver:
             The bus classification.
         """
         if bus.number == self._swing_bus_number:
-            return _BusType.SWING
+            return BusType.SWING
         elif bus.active_power_injected:
-            return _BusType.PV
+            return BusType.PV
         elif bus.active_power_consumed or bus.reactive_power_consumed:
-            return _BusType.PQ
+            return BusType.PQ
 
-        return _BusType.UNKNOWN
+        return BusType.UNKNOWN
 
     def _bus_power_estimates(self):
         """Computes power injection estimates for each bus.
@@ -128,7 +128,7 @@ class PowerFlowSolver:
         estimates = {}
         for src in self._system.buses:
             bus_type = self._bus_type(src)
-            if bus_type not in (_BusType.PV, _BusType.PQ):
+            if bus_type not in (BusType.PV, BusType.PQ):
                 continue
 
             p = 0
