@@ -61,6 +61,11 @@ class PowerFlowSolver:
         self._estimates = None
         self._pq_estimates = None
 
+    @property
+    def estimates(self):
+        """Returns the current bus power estimates."""
+        return self._estimates
+
     def has_converged(self):
         """Checks if the analysis has converged to a solution.
 

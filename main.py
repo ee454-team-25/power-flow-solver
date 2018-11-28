@@ -107,11 +107,19 @@ def main():
     # Initialize and solve the power flow.
     solver = power_flow_solver.PowerFlowSolver(
         system, args.swing_bus_number, args.max_active_power_error, args.max_reactive_power_error)
+    iteration = 0
     while not solver.has_converged():
+        iteration += 1
         solver.step()
 
-    print(power_system_reporter.BusVoltageReporter(system).report())
-    print(power_system_reporter.LinePowerReporter(system, args.power_base).report())
+        # Report on the buses with the largest active and reactive power mismatches.
+        print(power_system_reporter.LargestPowerMismatchReporter.report(solver.estimates, args.power_base, iteration))
+
+    # Report voltages at each bus.
+    print(power_system_reporter.BusVoltageReporter.report(system))
+
+    # Report power across each transmission line.
+    print(power_system_reporter.LinePowerReporter.report(system, args.power_base))
 
 
 if __name__ == '__main__':
