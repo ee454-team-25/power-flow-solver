@@ -24,6 +24,9 @@ Line = collections.namedtuple('Line',
 
 # A bus in the power system.
 #
+# This object is a namedlist instead of a namedtuple because the voltage field is mutable and changes at each iteration
+# of the load flow analysis.
+#
 # Args:
 #     number: The bus number.
 #     active_power_consumed: The active power consumed at this bus in per-unit.
