@@ -58,7 +58,7 @@ class PowerSystem(collections.namedtuple('PowerSystem', ['buses', 'lines'])):
             dst = line.destination - 1
 
             y_distributed = 1 / line.distributed_impedance
-            y_shunt = line.shunt_admittance / 2
+            y_shunt = line.shunt_admittance
 
             matrix[src][dst] -= y_distributed
             matrix[dst][src] -= y_distributed

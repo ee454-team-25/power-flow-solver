@@ -32,9 +32,10 @@ def line_power_report(system, power_base):
     for line in system.lines:
         src = system.buses[line.source - 1]
         dst = system.buses[line.destination - 1]
-
         v = dst.voltage - src.voltage
-        complex_power = power_base * numpy.abs(v) ** 2 / numpy.conj(line.distributed_impedance)
+        complex_power = power_base * (numpy.abs(v) ** 2 / numpy.conj(line.distributed_impedance) + numpy.abs(
+            src.voltage + dst.voltage) ** 2 * numpy.conj(line.shunt_admittance) / 2)
+
         line_name = '{}-{}'.format(src.number, dst.number)
         table.append([line_name, complex_power.real, complex_power.imag, numpy.abs(complex_power)])
 
@@ -51,16 +52,21 @@ def largest_power_mismatch_report(estimates, power_base, iteration):
     """
     max_p_error = 0
     max_p_error_bus = None
-
-    max_q_error = 0
-    max_q_error_bus = None
-
     for estimate in estimates.values():
-        if estimate.active_power_error > max_p_error:
+        if estimate.bus_type not in (power_flow_solver.BusType.PQ, power_flow_solver.BusType.PV):
+            continue
+
+        if numpy.abs(estimate.active_power_error) > numpy.abs(max_p_error):
             max_p_error = estimate.active_power_error
             max_p_error_bus = estimate.bus.number
 
-        if estimate.reactive_power_error > max_q_error:
+    max_q_error = 0
+    max_q_error_bus = None
+    for estimate in estimates.values():
+        if estimate.bus_type != power_flow_solver.BusType.PQ:
+            continue
+
+        if numpy.abs(estimate.reactive_power_error) > numpy.abs(max_q_error):
             max_q_error = estimate.reactive_power_error
             max_q_error_bus = estimate.bus.number
 

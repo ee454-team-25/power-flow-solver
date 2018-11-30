@@ -78,7 +78,7 @@ class ExcelPowerSystemBuilder:
             r_distributed = row[2].value or 0
             x_distributed = row[3].value or 0
             z_distributed = r_distributed + 1j * x_distributed
-            y_shunt = 1j * row[4].value or 0j
+            y_shunt = 1j * row[4].value / 2 or 0j
             max_power = row[5].value
 
             result.append(
