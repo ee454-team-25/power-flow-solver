@@ -58,7 +58,7 @@ class PowerFlowSolver:
         self._max_reactive_power_error = max_reactive_power_error
 
         self._admittance_matrix = self._system.admittance_matrix()
-        self._estimates = None
+        self._pv_pq_estimates = None
         self._pq_estimates = None
 
     @property
@@ -73,11 +73,11 @@ class PowerFlowSolver:
             True if the power inject estimates at each bus are equal to the actual power injection (within some
             allowable margin), false otherwise.
         """
-        if not self._estimates or not self._pq_estimates:
+        if not self._pv_pq_estimates or not self._pq_estimates:
             return False
 
         # Check active power mismatches.
-        for estimate in self._estimates.values():
+        for estimate in self._pv_pq_estimates.values():
             if numpy.abs(estimate.active_power_error) > self._max_active_power_error:
                 return False
 
@@ -94,11 +94,11 @@ class PowerFlowSolver:
         jacobian = self._jacobian()
         corrections = self._corrections(jacobian)
         self._apply_corrections(corrections)
-        self._update_swing_bus_power()
 
     def _compute_estimates(self):
         """Computes power injection estimates for each bus and splits out PQ buses."""
         self._estimates = self._bus_power_estimates()
+        self._pv_pq_estimates = {i.bus.number: i for i in self._estimates.values() if i.bus_type != BusType.SWING}
         self._pq_estimates = {i.bus.number: i for i in self._estimates.values() if i.bus_type == BusType.PQ}
 
     def _bus_type(self, bus):
@@ -128,6 +128,7 @@ class PowerFlowSolver:
             A dict mapping a bus number to its power injection estimate.
         """
         estimates = {}
+        s_total = 0
         for src in self._system.buses:
             bus_type = self._bus_type(src)
             if bus_type not in (BusType.PV, BusType.PQ):
@@ -151,7 +152,12 @@ class PowerFlowSolver:
 
             p_error = p + src.active_power_injected - src.active_power_consumed
             q_error = q - src.reactive_power_consumed
+            s_total -= (p + 1j * q)
             estimates[src.number] = _BusEstimate(src, bus_type, p, q, p_error, q_error)
+
+        # Estimate swing bus power.
+        estimates[self._swing_bus_number] = _BusEstimate(
+            self._system.buses[self._swing_bus_number - 1], BusType.SWING, s_total.real, s_total.imag, 0, 0)
 
         return estimates
 
@@ -167,16 +173,16 @@ class PowerFlowSolver:
 
     def _jacobian_11(self):
         """Computes the Jacobian submatrix J11."""
-        j11 = numpy.zeros((len(self._estimates), len(self._estimates)))
-        for row, src_number in enumerate(self._estimates):
-            src = self._estimates[src_number]
+        j11 = numpy.zeros((len(self._pv_pq_estimates), len(self._pv_pq_estimates)))
+        for row, src_number in enumerate(self._pv_pq_estimates):
+            src = self._pv_pq_estimates[src_number]
             k = src_number - 1
             v_k = numpy.abs(src.bus.voltage)
             theta_k = numpy.angle(src.bus.voltage)
             q_k = src.reactive_power
 
-            for col, dst_number in enumerate(self._estimates):
-                dst = self._estimates[dst_number]
+            for col, dst_number in enumerate(self._pv_pq_estimates):
+                dst = self._pv_pq_estimates[dst_number]
                 j = dst.bus.number - 1
                 v_j = numpy.abs(dst.bus.voltage)
                 theta_j = numpy.angle(dst.bus.voltage)
@@ -195,9 +201,9 @@ class PowerFlowSolver:
 
     def _jacobian_12(self):
         """Computes the Jacobian submatrix J12."""
-        j12 = numpy.zeros((len(self._estimates), len(self._pq_estimates)))
-        for row, src_number in enumerate(self._estimates):
-            src = self._estimates[src_number]
+        j12 = numpy.zeros((len(self._pv_pq_estimates), len(self._pq_estimates)))
+        for row, src_number in enumerate(self._pv_pq_estimates):
+            src = self._pv_pq_estimates[src_number]
             k = src_number - 1
             v_k = numpy.abs(src.bus.voltage)
             theta_k = numpy.angle(src.bus.voltage)
@@ -222,7 +228,7 @@ class PowerFlowSolver:
 
     def _jacobian_21(self):
         """Computes the Jacobian submatrix J21."""
-        j21 = numpy.zeros((len(self._pq_estimates), len(self._estimates)))
+        j21 = numpy.zeros((len(self._pq_estimates), len(self._pv_pq_estimates)))
         for row, src_number in enumerate(self._pq_estimates):
             src = self._pq_estimates[src_number]
             k = src_number - 1
@@ -230,8 +236,8 @@ class PowerFlowSolver:
             theta_k = numpy.angle(src.bus.voltage)
             p_k = src.active_power
 
-            for col, dst_number in enumerate(self._estimates):
-                dst = self._estimates[dst_number]
+            for col, dst_number in enumerate(self._pv_pq_estimates):
+                dst = self._pv_pq_estimates[dst_number]
                 j = dst.bus.number - 1
                 v_j = numpy.abs(dst.bus.voltage)
                 theta_j = numpy.angle(dst.bus.voltage)
@@ -293,7 +299,7 @@ class PowerFlowSolver:
         Returns:
             An ordered list of voltage phase angle and magnitude corrections.
         """
-        p_errors = [i.active_power_error for i in self._estimates.values()]
+        p_errors = [i.active_power_error for i in self._pv_pq_estimates.values()]
         q_errors = [i.reactive_power_error for i in self._pq_estimates.values()]
         errors = numpy.transpose([p_errors + q_errors])
         corrections = numpy.matmul(numpy.linalg.inv(jacobian), errors)
@@ -305,10 +311,10 @@ class PowerFlowSolver:
         Args:
             corrections: A list of voltage phase angle and magnitude corrections.
         """
-        angle_corrections = corrections[0:len(self._estimates)]
-        magnitude_corrections = corrections[len(self._estimates):]
+        angle_corrections = corrections[0:len(self._pv_pq_estimates)]
+        magnitude_corrections = corrections[len(self._pv_pq_estimates):]
 
-        for c, e in zip(angle_corrections, self._estimates.values()):
+        for c, e in zip(angle_corrections, self._pv_pq_estimates.values()):
             magnitude = numpy.abs(e.bus.voltage)
             angle = numpy.angle(e.bus.voltage) + c
             e.bus.voltage = magnitude * numpy.exp(1j * angle)
@@ -317,19 +323,3 @@ class PowerFlowSolver:
             magnitude = numpy.abs(e.bus.voltage) + c
             angle = numpy.angle(e.bus.voltage)
             e.bus.voltage = magnitude * numpy.exp(1j * angle)
-
-    def _update_swing_bus_power(self):
-        """Updates power values at the swing bus."""
-        p_total = sum([bus.active_power_injected - bus.active_power_consumed
-                       for bus in self._system.buses if bus.number != self._swing_bus_number])
-        q_total = sum([-bus.reactive_power_consumed
-                       for bus in self._system.buses if bus.number != self._swing_bus_number])
-
-        swing_bus = self._system.buses[self._swing_bus_number - 1]
-        swing_bus.reactive_power_consumed = -q_total
-        if p_total <= 0:
-            swing_bus.active_power_consumed = -p_total
-            swing_bus.active_power_injected = 0
-        else:
-            swing_bus.active_power_consumed = 0
-            swing_bus.active_power_injected = p_total

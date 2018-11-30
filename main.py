@@ -104,7 +104,7 @@ def main():
         args.input_workbook, args.bus_data_worksheet, args.line_data_worksheet, start_voltage, args.power_base)
     system = builder.build_system()
 
-    # Initialize and solve the power flow.
+    # Initialize the power flow.
     solver = power_flow_solver.PowerFlowSolver(system, args.swing_bus_number,
                                                args.max_active_power_error / args.power_base,
                                                args.max_reactive_power_error / args.power_base)

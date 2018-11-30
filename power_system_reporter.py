@@ -21,23 +21,22 @@ def bus_voltage_report(system):
 def line_power_report(system, power_base):
     """Reports the active, reactive, and apparent power for each transmission line.
 
-    TODO(kjiwa): Report whether a line has exceeded its power rating.
-
     Args:
         system: The power system being analyzed.
         power_base: The power base in MVA.
     """
-    headers = ['Line', 'Active Power (MW)', 'Reactive Power (Mvar)', 'Apparent Power (MVA)']
+    headers = ['Line', 'Active Power (MW)', 'Reactive Power (Mvar)', 'Apparent Power (MVA)', 'Exceeds Rating']
     table = []
     for line in system.lines:
         src = system.buses[line.source - 1]
         dst = system.buses[line.destination - 1]
         v = dst.voltage - src.voltage
-        complex_power = power_base * (numpy.abs(v) ** 2 / numpy.conj(line.distributed_impedance) + numpy.abs(
-            src.voltage + dst.voltage) ** 2 * numpy.conj(line.shunt_admittance) / 2)
+        s = power_base * (numpy.abs(v) ** 2 / numpy.conj(line.distributed_impedance)
+                          + numpy.abs(src.voltage + dst.voltage) ** 2 * numpy.conj(line.shunt_admittance) / 2)
 
+        exceeds_rating = 'Yes' if line.max_power and numpy.abs(s) > line.max_power else 'No'
         line_name = '{}-{}'.format(src.number, dst.number)
-        table.append([line_name, complex_power.real, complex_power.imag, numpy.abs(complex_power)])
+        table.append([line_name, s.real, s.imag, numpy.abs(s), exceeds_rating])
 
     return tabulate.tabulate(table, headers=headers, floatfmt=TABULATE_FLOAT_FMT)
 
@@ -93,10 +92,9 @@ def power_injection_report(system, estimates, power_base):
     headers = ['Bus', 'Active Power Injection (MW)', 'Reactive Power Injection (Mvar)']
     table = []
     for estimate in estimates.values():
-        if estimate.bus_type != power_flow_solver.BusType.PV:
-            continue
-
-        q_injected = -(estimate.reactive_power - estimate.bus.reactive_power_consumed) * power_base
-        table.append([estimate.bus.number, estimate.bus.active_power_injected * power_base, q_injected])
+        p_injected = -(estimate.active_power - estimate.bus.active_power_consumed) * power_base
+        q_injected = -estimate.reactive_power * power_base
+        if p_injected > 0:
+            table.append([estimate.bus.number, p_injected, q_injected])
 
     return tabulate.tabulate(table, headers=headers, floatfmt=TABULATE_FLOAT_FMT)
