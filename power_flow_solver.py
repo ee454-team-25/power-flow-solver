@@ -57,7 +57,8 @@ class PowerFlowSolver:
         self._max_active_power_error = max_active_power_error
         self._max_reactive_power_error = max_reactive_power_error
 
-        self._admittance_matrix = self._system.admittance_matrix()
+        self._admittance_matrix = system.admittance_matrix()
+        self._estimates = None
         self._pv_pq_estimates = None
         self._pq_estimates = None
 
@@ -70,7 +71,7 @@ class PowerFlowSolver:
         """Checks if the analysis has converged to a solution.
 
         Returns:
-            True if the power inject estimates at each bus are equal to the actual power injection (within some
+            True if the power injection estimates at each bus are equal to the actual power injection (within some
             allowable margin), false otherwise.
         """
         if not self._pv_pq_estimates or not self._pq_estimates:
@@ -96,7 +97,7 @@ class PowerFlowSolver:
         self._apply_corrections(corrections)
 
     def _compute_estimates(self):
-        """Computes power injection estimates for each bus and splits out PQ buses."""
+        """Computes power injection estimates for each bus and splits out PV/PQ and PQ buses."""
         self._estimates = self._bus_power_estimates()
         self._pv_pq_estimates = {i.bus.number: i for i in self._estimates.values() if i.bus_type != BusType.SWING}
         self._pq_estimates = {i.bus.number: i for i in self._estimates.values() if i.bus_type == BusType.PQ}
@@ -128,7 +129,6 @@ class PowerFlowSolver:
             A dict mapping a bus number to its power injection estimate.
         """
         estimates = {}
-        s_total = 0
         for src in self._system.buses:
             bus_type = self._bus_type(src)
             p = 0
@@ -149,7 +149,6 @@ class PowerFlowSolver:
 
             p_error = p + src.active_power_injected - src.active_power_consumed
             q_error = q - src.reactive_power_consumed
-            s_total -= (p + 1j * q)
             estimates[src.number] = _BusEstimate(src, bus_type, p, q, p_error, q_error)
 
         return estimates
