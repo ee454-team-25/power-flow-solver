@@ -131,9 +131,6 @@ class PowerFlowSolver:
         s_total = 0
         for src in self._system.buses:
             bus_type = self._bus_type(src)
-            if bus_type not in (BusType.PV, BusType.PQ):
-                continue
-
             p = 0
             q = 0
             v_k = numpy.abs(src.voltage)
@@ -154,10 +151,6 @@ class PowerFlowSolver:
             q_error = q - src.reactive_power_consumed
             s_total -= (p + 1j * q)
             estimates[src.number] = _BusEstimate(src, bus_type, p, q, p_error, q_error)
-
-        # Estimate swing bus power.
-        estimates[self._swing_bus_number] = _BusEstimate(
-            self._system.buses[self._swing_bus_number - 1], BusType.SWING, s_total.real, s_total.imag, 0, 0)
 
         return estimates
 

@@ -25,13 +25,13 @@ class TestExcelPowerSystemBuilder(unittest.TestCase):
 
         actual = builder.build_lines()
         expected = [
-            power_system.Line(1, 2, 0.05 + 0.11j, 0.02j, None),
-            power_system.Line(1, 3, 0.05 + 0.11j, 0.02j, None),
-            power_system.Line(1, 5, 0.03 + 0.08j, 0.02j, None),
-            power_system.Line(2, 3, 0.04 + 0.09j, 0.02j, None),
-            power_system.Line(2, 5, 0.04 + 0.09j, 0.02j, None),
-            power_system.Line(3, 4, 0.06 + 0.13j, 0.03j, None),
-            power_system.Line(4, 5, 0.04 + 0.09j, 0.02j, None)
+            power_system.Line(1, 2, 0.05 + 0.11j, 0.01j, None),
+            power_system.Line(1, 3, 0.05 + 0.11j, 0.01j, None),
+            power_system.Line(1, 5, 0.03 + 0.08j, 0.01j, None),
+            power_system.Line(2, 3, 0.04 + 0.09j, 0.01j, None),
+            power_system.Line(2, 5, 0.04 + 0.09j, 0.01j, None),
+            power_system.Line(3, 4, 0.06 + 0.13j, 0.015j, None),
+            power_system.Line(4, 5, 0.04 + 0.09j, 0.01j, None)
         ]
 
         self.assertListEqual(expected, actual)
