@@ -124,7 +124,7 @@ def main():
 
     # Produce system reports.
     print(power_system_reporter.bus_voltage_report(system, args.min_operating_voltage, args.max_operating_voltage))
-    print(power_system_reporter.power_injection_report(system, solver.estimates, args.power_base))
+    print(power_system_reporter.power_injection_report(solver.estimates, args.power_base))
     print(power_system_reporter.line_power_report(system, args.power_base))
 
 
