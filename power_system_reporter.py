@@ -56,37 +56,20 @@ def largest_power_mismatch_report(estimates, power_base, iteration):
         power_base: The power base in MVA.
         iteration: The current iteration of the power flow solver.
     """
-    max_p_error = 0
-    max_p_error_bus = None
-    for estimate in estimates.values():
-        if estimate.bus_type not in (power_flow_solver.BusType.PQ, power_flow_solver.BusType.PV):
-            continue
+    # Find the maximum active power error.
+    pv_pq_estimates = [i for i in estimates.values() if i.bus_type != power_flow_solver.BusType.SWING]
+    max_p_error_estimate = max(pv_pq_estimates, key=lambda x: numpy.abs(x.active_power_error))
+    max_p_error = max_p_error_estimate.active_power_error * power_base
 
-        if numpy.abs(estimate.active_power_error) > numpy.abs(max_p_error):
-            max_p_error = estimate.active_power_error
-            max_p_error_bus = estimate.bus.number
+    # Find the maximum reactive power error.
+    pq_estimates = [i for i in estimates.values() if i.bus_type == power_flow_solver.BusType.PQ]
+    max_q_error_estimate = max(pq_estimates, key=lambda x: numpy.abs(x.reactive_power_error))
+    max_q_error = max_q_error_estimate.reactive_power_error * power_base
 
-    max_q_error = 0
-    max_q_error_bus = None
-    for estimate in estimates.values():
-        if estimate.bus_type != power_flow_solver.BusType.PQ:
-            continue
-
-        if numpy.abs(estimate.reactive_power_error) > numpy.abs(max_q_error):
-            max_q_error = estimate.reactive_power_error
-            max_q_error_bus = estimate.bus.number
-
-    max_p_error *= power_base
-    max_q_error *= power_base
-
-    s = 'Iteration {}'.format(iteration)
-    if max_p_error:
-        s += '\n  Largest active power mismatch:   {:.4f} MW (Bus {})'.format(max_p_error, max_p_error_bus)
-
-    if max_q_error:
-        s += '\n  Largest reactive power mismatch: {:.4f} Mvar (Bus {})'.format(max_q_error, max_q_error_bus)
-
-    return s
+    return '''Iteration {}
+  Largest active power mismatch:   {:8.4f} MW   (Bus {})
+  Largest reactive power mismatch: {:8.4f} Mvar (Bus {})'''.format(
+        iteration, max_p_error, max_p_error_estimate.bus.number, max_q_error, max_q_error_estimate.bus.number)
 
 
 def power_injection_report(system, estimates, power_base):
@@ -99,9 +82,11 @@ def power_injection_report(system, estimates, power_base):
     headers = ['Bus', 'Active Power Injection (MW)', 'Reactive Power Injection (Mvar)']
     table = []
     for estimate in estimates.values():
+        if estimate.bus_type == power_flow_solver.BusType.PQ:
+            continue
+
         p_injected = (estimate.active_power + estimate.bus.active_power_consumed) * power_base
         q_injected = estimate.reactive_power * power_base
-        if p_injected > 0 and estimate.bus_type != power_flow_solver.BusType.PQ:
-            table.append([estimate.bus.number, p_injected, q_injected])
+        table.append([estimate.bus.number, p_injected, q_injected])
 
     return tabulate.tabulate(table, headers=headers, floatfmt=TABULATE_FLOAT_FMT)
