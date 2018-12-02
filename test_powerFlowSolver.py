@@ -14,6 +14,7 @@ class TestPowerFlowSolver(unittest.TestCase):
     def test_errors(self):
         solver = TestPowerFlowSolver.build_solver('data/Data.xlsx')
 
+        # Reference values taken from PowerWorld simulation.
         p_expected = [0.0083, -0.6560, -0.3881, 0.0518, -0.0357, -0.2238, -0.09, -0.035, 0.0082, 0.0463, 0.0165]
         q_expected = [0.2962, 0.4714, 0.0838, -0.0145, -0.0580, -0.0180, 0.1703]
 
@@ -31,11 +32,13 @@ class TestPowerFlowSolver(unittest.TestCase):
         for _ in range(0, 10):
             solver.step()
 
+        # Reference values taken from PowerWorld simulation.
         expected_magnitudes = [1.05, 1.04501, 1.01011, 1.03048, 1.03288, 1.02309, 0.99202, 0.98917, 1.00172, 1.05001,
                                1.02432, 1.05001]
         actual_magnitudes = [numpy.abs(i.voltage) for i in solver._system.buses]
         numpy.testing.assert_array_almost_equal(actual_magnitudes, expected_magnitudes, 3)
 
+        # Reference values taken from PowerWorld simulation.
         expected_angles = [0, -3.27, -10.08, -6.06, -5.17, -7.64, -10.12, -9.99, -8.96, -6.7, -7.92, -8.82]
         actual_angles = [numpy.rad2deg(numpy.angle(i.voltage)) for i in solver._system.buses]
         numpy.testing.assert_array_almost_equal(actual_angles, expected_angles, 2)
