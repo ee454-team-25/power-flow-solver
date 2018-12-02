@@ -73,7 +73,7 @@ def largest_power_mismatch_report(estimates, power_base, iteration):
 
 
 def power_injection_report(estimates, power_base):
-    """Reports the active and reactive power injection from each generator and synchronous consider.
+    """Reports the active and reactive power injection from each generator and synchronous condenser.
 
     Args:
         estimates: A dict mapping bus numbers to estimates of its active power injection.
@@ -85,8 +85,8 @@ def power_injection_report(estimates, power_base):
         if estimate.bus_type == power_flow_solver.BusType.PQ:
             continue
 
-        #    P(total) = P(injected) - P(consumed)
-        # P(injected) = P(total) + P(consumed)
+        #    S(total) = S(injected) - S(consumed)
+        # S(injected) = S(total) + S(consumed)
         p_injected = (estimate.active_power + estimate.bus.active_power_consumed) * power_base
         q_injected = (estimate.reactive_power + estimate.bus.reactive_power_consumed) * power_base
         table.append([estimate.bus.number, p_injected, q_injected])
