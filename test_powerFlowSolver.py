@@ -119,7 +119,7 @@ class TestPowerFlowSolver(unittest.TestCase):
         solver._compute_estimates()
 
         expected = [-0.040599, -0.040003, -0.060281, -0.04515, -0.041184, -0.041492, -0.061248, -0.042768]
-        actual = solver._corrections(solver._jacobian())
+        actual = solver._compute_corrections(solver._jacobian())
         numpy.testing.assert_array_almost_equal(actual, expected)
 
     def test_step_powell(self):

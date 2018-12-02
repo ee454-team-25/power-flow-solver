@@ -1,7 +1,8 @@
 """A module containing a power flow analysis API.
 
 The main object in this module is the PowerFlowSolver, which takes a power system as input and runs iterations of the
-Newton-Raphson method to determine the voltages at each bus, relative to a swing bus.
+Newton-Raphson method to determine the voltages at each bus, relative to a swing bus. The buses in the power system are
+directly modified and updated at each iteration.
 
     system = build_system()
     solver = PowerFlowSolver(system)
@@ -93,7 +94,7 @@ class PowerFlowSolver:
         """Executes a step of the power flow analysis using the Newton-Raphson method."""
         self._compute_estimates()
         jacobian = self._jacobian()
-        corrections = self._corrections(jacobian)
+        corrections = self._compute_corrections(jacobian)
         self._apply_corrections(corrections)
 
     def _compute_estimates(self):
@@ -273,7 +274,7 @@ class PowerFlowSolver:
 
         return j22
 
-    def _corrections(self, jacobian):
+    def _compute_corrections(self, jacobian):
         """Compute corrective factors to apply to voltage phase angles and magnitudes.
 
         This method executes an iteration of the Newton-Raphson method. The state vector is given from the list of
