@@ -91,7 +91,15 @@ class PowerFlowSolver:
         return True
 
     def step(self):
-        """Executes a step of the power flow analysis using the Newton-Raphson method."""
+        """Executes a step of the power flow analysis using the Newton-Raphson method.
+
+        The following steps are performed:
+
+            1. Compute bus power estimates using the explicit power equations.
+            2. Compute the Jacobian for the estimated system.
+            3. Execute the Newton-Raphson method to obtain a set of voltage magnitude and phase angle corrections.
+            4. Apply the corrections to each bus.
+        """
         self._compute_estimates()
         jacobian = self._jacobian()
         corrections = self._compute_corrections(jacobian)
@@ -299,7 +307,7 @@ class PowerFlowSolver:
         return corrections.transpose()[0]
 
     def _apply_corrections(self, corrections):
-        """Applies a list of voltage corrections to bus estimates.
+        """Applies a list of voltage corrections to each bus.
 
         Args:
             corrections: A list of voltage phase angle and magnitude corrections.
