@@ -7,14 +7,21 @@ import tabulate
 TABULATE_FLOAT_FMT = '.4f'
 
 
-def bus_voltage_report(system):
-    """Reports the voltage at each bus.
+def bus_voltage_report(system, min_operating_voltage, max_operating_voltage):
+    """Reports the voltage at each bus and whether the bus is outside operating limits.
 
     Args:
         system: The power system being analyzed.
+        min_operating_voltage: The minimum operating voltage.
+        max_operating_voltage: The maximum operating voltage.
     """
-    headers = ['Bus', 'Voltage (V)', 'Phase (deg)']
-    table = [[bus.number, numpy.abs(bus.voltage), numpy.rad2deg(numpy.angle(bus.voltage))] for bus in system.buses]
+    headers = ['Bus', 'Voltage (V)', 'Phase (deg)', 'Outside Operating Limits']
+    table = []
+    for bus in system.buses:
+        voltage = numpy.abs(bus.voltage)
+        outside_limits = 'Yes' if voltage < min_operating_voltage or voltage > max_operating_voltage else 'No'
+        table.append([bus.number, numpy.abs(bus.voltage), numpy.rad2deg(numpy.angle(bus.voltage)), outside_limits])
+
     return tabulate.tabulate(table, headers=headers, floatfmt=TABULATE_FLOAT_FMT)
 
 

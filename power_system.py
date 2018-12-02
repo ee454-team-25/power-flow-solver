@@ -16,8 +16,8 @@ import numpy
 # Args:
 #     source: The source bus number.
 #     destination: The destination bus number.
-#     distributed_impedance: The distributed impedance of the power line in per-unit.
-#     shunt_admittance: The shunt admittance of the power line in per-unit.
+#     distributed_impedance: The per-unit distributed impedance of the power line.
+#     shunt_admittance: The per-unit shunt admittance of the power line.
 #     max_power: The maximum power rating of the line in MVA.
 Line = collections.namedtuple('Line',
                               ['source', 'destination', 'distributed_impedance', 'shunt_admittance', 'max_power'])
@@ -29,10 +29,10 @@ Line = collections.namedtuple('Line',
 #
 # Args:
 #     number: The bus number.
-#     active_power_consumed: The active power consumed at this bus in per-unit.
-#     reactive_power_consumed: The reactive power consumed at this bus in per-unit.
-#     active_power_injected: The active power injected at this bus in per-unit.
-#     voltage: The voltage at this bus in per-unit.
+#     active_power_consumed: The per-unit active power consumed at this bus.
+#     reactive_power_consumed: The per-unit reactive power consumed at this bus.
+#     active_power_injected: The per-unit active power injected at this bus.
+#     voltage: The per-unit voltage at this bus.
 Bus = namedlist.namedlist('Bus',
                           ['number', 'active_power_consumed', 'reactive_power_consumed', 'active_power_injected',
                            'voltage'])

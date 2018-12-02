@@ -19,6 +19,8 @@ The program accepts the following arguments:
 * power_base: The power base in MVA (default: 100).
 * max_active_power_error: The maximum allowed real power mismatch in MW (default: 0.1).
 * max_reactive_power_error: The maximum allowed reactive power mismatch in Mvar (default: 0.1).
+* min_operating_voltage: The minimum acceptable per-unit voltage magnitude at a bus.
+* max_operating_voltage: The maximum acceptable per-unit voltage magnitude at a bus.
 
 ### Input Format
 

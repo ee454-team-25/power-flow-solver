@@ -66,6 +66,8 @@ DEFAULT_START_VOLTAGE = 1 + 0j
 DEFAULT_POWER_BASE = 100
 DEFAULT_MAX_ACTIVE_POWER_ERROR = 0.1
 DEFAULT_MAX_REACTIVE_POWER_ERROR = 0.1
+DEFAULT_MIN_OPERATING_VOLTAGE = 0.95
+DEFAULT_MAX_OPERATING_VOLTAGE = 1.05
 
 
 def parse_arguments():
@@ -91,6 +93,10 @@ def parse_arguments():
                         help='The maximum allowed mismatch between computed and actual megawatts at each bus.')
     parser.add_argument('--max_reactive_power_error', type=float, default=DEFAULT_MAX_REACTIVE_POWER_ERROR,
                         help='The maximum allowed mismatch between computed and actual megavars at each bus.')
+    parser.add_argument('--min_operating_voltage', type=float, default=DEFAULT_MIN_OPERATING_VOLTAGE,
+                        help='The minimum acceptable per-unit voltage magnitude at a bus.')
+    parser.add_argument('--max_operating_voltage', type=float, default=DEFAULT_MAX_OPERATING_VOLTAGE,
+                        help='The maximum acceptable per-unit voltage magnitude at a bus.')
     return parser.parse_args()
 
 
@@ -117,7 +123,7 @@ def main():
         print(power_system_reporter.largest_power_mismatch_report(solver.estimates, args.power_base, iteration))
 
     # Produce system reports.
-    print(power_system_reporter.bus_voltage_report(system))
+    print(power_system_reporter.bus_voltage_report(system, args.min_operating_voltage, args.max_operating_voltage))
     print(power_system_reporter.power_injection_report(system, solver.estimates, args.power_base))
     print(power_system_reporter.line_power_report(system, args.power_base))
 
