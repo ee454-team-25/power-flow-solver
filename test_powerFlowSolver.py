@@ -6,9 +6,10 @@ import unittest
 
 class TestPowerFlowSolver(unittest.TestCase):
     @staticmethod
-    def build_solver(filename):
+    def build_solver(filename, max_active_power_error=0.001, max_reactive_power_error=0.001):
         builder = power_system_builder.ExcelPowerSystemBuilder(filename)
-        return power_flow_solver.PowerFlowSolver(builder.build_system())
+        return power_flow_solver.PowerFlowSolver(builder.build_system(), max_active_power_error=max_active_power_error,
+                                                 max_reactive_power_error=max_reactive_power_error)
 
     def test_errors(self):
         solver = TestPowerFlowSolver.build_solver('data/Data.xlsx')
@@ -58,12 +59,12 @@ class TestPowerFlowSolver(unittest.TestCase):
         solver = TestPowerFlowSolver.build_solver('data/Sample-Powell-3.1.xlsx')
         solver._compute_estimates()
 
-        expected = [[26.030948, -9.278351, 0, -9.278350],
-                    [-9.278351, 23.084061, -6.341463, 0],
-                    [0, -6.341463, 15.569814, -9.278351],
-                    [-9.278351, 0, -9.278351, 29.455605]]
+        expected = [[26.09095, -9.278350, 0, -9.278350],
+                    [-9.278350, 23.154060, -6.341464, 0],
+                    [0, -6.341464, 15.619813, -9.278350],
+                    [-9.278350, 0, -9.278350, 29.515605]]
         actual = solver._jacobian_11()
-        numpy.testing.assert_array_almost_equal(actual, expected)
+        numpy.testing.assert_array_almost_equal(actual, expected, 5)
 
     def test_jacobian_12_powell(self):
         solver = TestPowerFlowSolver.build_solver('data/Sample-Powell-3.1.xlsx')
@@ -92,35 +93,35 @@ class TestPowerFlowSolver(unittest.TestCase):
         solver = TestPowerFlowSolver.build_solver('data/Sample-Powell-3.1.xlsx')
         solver._compute_estimates()
 
-        expected = [[26.090948, -9.278351, 0, -9.278351],
-                    [-9.278351, 23.154061, -6.341463, 0],
-                    [0, -6.341463, 15.619814, -9.278351],
-                    [-9.278351, 0, -9.278351, 29.515605]]
+        expected = [[26.03095, -9.278350, 0, -9.278350],
+                    [-9.278350, 23.084060, -6.341464, 0],
+                    [0, -6.341464, 15.569814, -9.278350],
+                    [-9.278350, 0, -9.278350, 29.455605]]
         actual = solver._jacobian_22()
-        numpy.testing.assert_array_almost_equal(actual, expected)
+        numpy.testing.assert_array_almost_equal(actual, expected, 5)
 
     def test_jacobian_powell(self):
         solver = TestPowerFlowSolver.build_solver('data/Sample-Powell-3.1.xlsx')
         solver._compute_estimates()
 
-        expected = [[26.030948, -9.278351, 0, -9.278350, 11.672080, -4.123711, 0, -4.123711],
-                    [-9.278351, 23.084061, -6.341463, 0, -4.123711, 10.475198, -2.926829, 0],
-                    [0, -6.341463, 15.569814, -9.278351, 0, -2.926829, 7.050541, -4.123711],
-                    [-9.278351, 0, -9.278351, 29.455605, -4.123711, 0, -4.123711, 12.357011],
-                    [-11.672080, 4.123711, 0, 4.123711, 26.090948, -9.278351, 0, -9.278351],
-                    [4.123711, -10.475198, 2.926829, 0, -9.278351, 23.154061, -6.341463, 0],
-                    [0, 2.926829, -7.050541, 4.123711, 0, -6.341463, 15.619814, -9.278351],
-                    [4.123711, 0, 4.123711, -12.357011, -9.278351, 0, -9.278351, 29.515605]]
+        expected = [[26.09095, -9.278350, 0, -9.278350, 11.672080, -4.123711, 0, -4.123711],
+                    [-9.278350, 23.154060, -6.341464, 0, -4.123711, 10.475198, -2.926829, 0],
+                    [0, -6.341464, 15.619813, -9.278350, 0, -2.926829, 7.050541, -4.123711],
+                    [-9.278350, 0, -9.278350, 29.515605, -4.123711, 0, -4.123711, 12.357011],
+                    [-11.672080, 4.123711, 0, 4.123711, 26.03095, -9.278350, 0, -9.278350],
+                    [4.123711, -10.475198, 2.926829, 0, -9.278350, 23.084060, -6.341464, 0],
+                    [0, 2.926829, -7.050541, 4.123711, 0, -6.341464, 15.569814, -9.278350],
+                    [4.123711, 0, 4.123711, -12.357011, -9.278350, 0, -9.278350, 29.455605]]
         actual = solver._jacobian()
-        numpy.testing.assert_array_almost_equal(actual, expected)
+        numpy.testing.assert_array_almost_equal(actual, expected, 5)
 
     def test_corrections_powell(self):
         solver = TestPowerFlowSolver.build_solver('data/Sample-Powell-3.1.xlsx')
         solver._compute_estimates()
 
-        expected = [-0.040599, -0.040003, -0.060281, -0.04515, -0.041184, -0.041492, -0.061248, -0.042768]
+        expected = [-0.040160, -0.039524, -0.059629, -0.044711, -0.041271, -0.041553, -0.061319, -0.042830]
         actual = solver._compute_corrections(solver._jacobian())
-        numpy.testing.assert_array_almost_equal(actual, expected)
+        numpy.testing.assert_array_almost_equal(actual, expected, 3)
 
     def test_step_powell(self):
         solver = TestPowerFlowSolver.build_solver('data/Sample-Powell-3.1.xlsx')
@@ -135,7 +136,7 @@ class TestPowerFlowSolver(unittest.TestCase):
         numpy.testing.assert_array_almost_equal(actual_angles, expected_angles, 3)
 
     def test_convergence_powell(self):
-        solver = TestPowerFlowSolver.build_solver('data/Sample-Powell-3.1.xlsx')
+        solver = TestPowerFlowSolver.build_solver('data/Sample-Powell-3.1.xlsx', 0.0001, 0.0001)
         self.assertFalse(solver.has_converged())
 
         for _ in range(0, 3):

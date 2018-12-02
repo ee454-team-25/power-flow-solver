@@ -99,8 +99,8 @@ def power_injection_report(system, estimates, power_base):
     headers = ['Bus', 'Active Power Injection (MW)', 'Reactive Power Injection (Mvar)']
     table = []
     for estimate in estimates.values():
-        p_injected = -(estimate.active_power - estimate.bus.active_power_consumed) * power_base
-        q_injected = -estimate.reactive_power * power_base
+        p_injected = (estimate.active_power + estimate.bus.active_power_consumed) * power_base
+        q_injected = estimate.reactive_power * power_base
         if p_injected > 0 and estimate.bus_type != power_flow_solver.BusType.PQ:
             table.append([estimate.bus.number, p_injected, q_injected])
 

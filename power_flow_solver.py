@@ -153,11 +153,11 @@ class PowerFlowSolver:
                 b_ki = y_ki.imag
                 theta_ki = theta_k - theta_i
 
-                p -= v_k * v_i * (g_ki * numpy.cos(theta_ki) + b_ki * numpy.sin(theta_ki))
-                q -= v_k * v_i * (g_ki * numpy.sin(theta_ki) - b_ki * numpy.cos(theta_ki))
+                p += v_k * v_i * (g_ki * numpy.cos(theta_ki) + b_ki * numpy.sin(theta_ki))
+                q += v_k * v_i * (g_ki * numpy.sin(theta_ki) - b_ki * numpy.cos(theta_ki))
 
-            p_error = p + src.active_power_injected - src.active_power_consumed
-            q_error = q - src.reactive_power_consumed
+            p_error = src.active_power_injected - src.active_power_consumed - p
+            q_error = -src.reactive_power_consumed - q
             estimates[src.number] = _BusEstimate(src, bus_type, p, q, p_error, q_error)
 
         return estimates
