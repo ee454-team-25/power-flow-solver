@@ -32,18 +32,20 @@ def line_power_report(system, power_base):
         system: The power system being analyzed.
         power_base: The power base in MVA.
     """
-    headers = ['Line', 'Active Power (MW)', 'Reactive Power (Mvar)', 'Apparent Power (MVA)', 'Exceeds Rating']
+    headers = ['Line', 'Sending Power (MVA)', 'Receiving Power (MVA)', 'Exceeds Rating']
     table = []
     for line in system.lines:
         src = system.buses[line.source - 1]
         dst = system.buses[line.destination - 1]
-        v = dst.voltage - src.voltage
-        s = power_base * (numpy.abs(v) ** 2 / numpy.conj(line.distributed_impedance)
-                          + numpy.abs(src.voltage + dst.voltage) ** 2 * numpy.conj(line.shunt_admittance) / 2)
 
-        exceeds_rating = 'Yes' if line.max_power and numpy.abs(s) > line.max_power else 'No'
+        i_src = (src.voltage - dst.voltage) / line.distributed_impedance + src.voltage * line.shunt_admittance
+        i_dst = (dst.voltage - src.voltage) / line.distributed_impedance + dst.voltage * line.shunt_admittance
+        s_src = power_base * numpy.abs(src.voltage * numpy.conj(i_src))
+        s_dst = power_base * numpy.abs(dst.voltage * numpy.conj(i_dst))
+
         line_name = '{}-{}'.format(src.number, dst.number)
-        table.append([line_name, s.real, s.imag, numpy.abs(s), exceeds_rating])
+        exceeds_rating = 'Yes' if line.max_power and max(s_src, s_dst) > line.max_power else 'No'
+        table.append([line_name, s_src, s_dst, exceeds_rating])
 
     return tabulate.tabulate(table, headers=headers, floatfmt=TABULATE_FLOAT_FMT)
 
@@ -72,12 +74,14 @@ def largest_power_mismatch_report(estimates, power_base, iteration):
         iteration, max_p_error, max_p_error_estimate.bus.number, max_q_error, max_q_error_estimate.bus.number)
 
 
-def power_injection_report(estimates, power_base):
+def power_injection_report(estimates, power_base, max_active_power_error, max_reactive_power_error):
     """Reports the active and reactive power injection from each generator and synchronous condenser.
 
     Args:
         estimates: A dict mapping bus numbers to estimates of its active power injection.
         power_base: The power base in MVA.
+        max_active_power_error: The maximum allowed active power error in MW.
+        max_reactive_power_error: The maximum allowed reactive power error in Mvar.
     """
     headers = ['Bus', 'Active Power Injection (MW)', 'Reactive Power Injection (Mvar)']
     table = []
@@ -85,10 +89,10 @@ def power_injection_report(estimates, power_base):
         if estimate.bus_type == power_flow_solver.BusType.PQ:
             continue
 
-        #    S(total) = S(injected) - S(consumed)
-        # S(injected) = S(total) + S(consumed)
         p_injected = (estimate.active_power + estimate.bus.active_power_consumed) * power_base
         q_injected = (estimate.reactive_power + estimate.bus.reactive_power_consumed) * power_base
         table.append([estimate.bus.number, p_injected, q_injected])
 
-    return tabulate.tabulate(table, headers=headers, floatfmt=TABULATE_FLOAT_FMT)
+    floatfmt_p = '.{}f'.format(int(numpy.ceil(-numpy.log10(max_active_power_error))))
+    floatfmt_q = '.{}f'.format(int(numpy.ceil(-numpy.log10(max_reactive_power_error))))
+    return tabulate.tabulate(table, headers=headers, floatfmt=(None, floatfmt_p, floatfmt_q))
