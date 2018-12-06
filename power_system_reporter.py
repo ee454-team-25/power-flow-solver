@@ -32,7 +32,9 @@ def line_power_report(system, power_base):
         system: The power system being analyzed.
         power_base: The power base in MVA.
     """
-    headers = ['Line', 'Sending Power (MVA)', 'Receiving Power (MVA)', 'Exceeds Rating']
+    headers = ['Line', 'Sending Active Power (MW)', 'Sending Reactive Power (Mvar)', 'Sending Apparent Power (MVA)',
+               'Receiving Active Power (MW)', 'Receiving Reactive Power (Mvar)', 'Receiving Power (MVA)',
+               'Exceeds Rating']
     table = []
     for line in system.lines:
         src = system.buses[line.source - 1]
@@ -40,12 +42,13 @@ def line_power_report(system, power_base):
 
         i_src = (src.voltage - dst.voltage) / line.distributed_impedance + src.voltage * line.shunt_admittance
         i_dst = (dst.voltage - src.voltage) / line.distributed_impedance + dst.voltage * line.shunt_admittance
-        s_src = power_base * numpy.abs(src.voltage * numpy.conj(i_src))
-        s_dst = power_base * numpy.abs(dst.voltage * numpy.conj(i_dst))
+        s_src = power_base * src.voltage * numpy.conj(i_src)
+        s_dst = power_base * dst.voltage * numpy.conj(i_dst)
 
         line_name = '{}-{}'.format(src.number, dst.number)
         exceeds_rating = 'Yes' if line.max_power and max(s_src, s_dst) > line.max_power else 'No'
-        table.append([line_name, s_src, s_dst, exceeds_rating])
+        table.append([line_name, s_src.real, s_src.imag, numpy.abs(s_src), s_dst.real, s_dst.imag, numpy.abs(s_dst),
+                      exceeds_rating])
 
     return tabulate.tabulate(table, headers=headers, floatfmt=TABULATE_FLOAT_FMT)
 
