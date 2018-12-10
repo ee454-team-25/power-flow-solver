@@ -32,9 +32,8 @@ def line_power_report(system, power_base):
         system: The power system being analyzed.
         power_base: The power base in MVA.
     """
-    headers = ['Line', 'Sending Active Power (MW)', 'Sending Reactive Power (Mvar)', 'Sending Apparent Power (MVA)',
-               'Receiving Active Power (MW)', 'Receiving Reactive Power (Mvar)', 'Receiving Power (MVA)',
-               'Exceeds Rating']
+    headers = ['Line', 'Sending Power (MW)', 'Sending Power (Mvar)', 'Sending Power (MVA)', 'Receiving Power (MW)',
+               'Receiving Power (Mvar)', 'Receiving Power (MVA)', 'Exceeds Rating']
     table = []
     for line in system.lines:
         src = system.buses[line.source - 1]
