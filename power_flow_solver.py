@@ -73,20 +73,9 @@ class PowerFlowSolver:
             True if the power injection estimates at each bus are equal to the actual power injection (within some
             allowable margin), false otherwise.
         """
-        if not self._pv_pq_estimates or not self._pq_estimates:
-            return False
-
-        # Check active power mismatches.
-        for estimate in self._pv_pq_estimates.values():
-            if numpy.abs(estimate.active_power_error) > self._max_active_power_error:
-                return False
-
-        # Check reactive power mismatches.
-        for estimate in self._pq_estimates.values():
-            if numpy.abs(estimate.reactive_power_error) > self._max_reactive_power_error:
-                return False
-
-        return True
+        max_dp = numpy.max([numpy.abs(i.active_power_error) for i in self._pq_estimates.values()])
+        max_dq = numpy.max([numpy.abs(i.reactive_power_error) for i in self._pq_estimates.values()])
+        return max_dp <= self._max_active_power_error and max_dq <= self._max_reactive_power_error
 
     def step(self):
         """Executes a step of the power flow analysis using the Newton-Raphson method.
