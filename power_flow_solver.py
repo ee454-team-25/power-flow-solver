@@ -59,9 +59,7 @@ class PowerFlowSolver:
         self._max_reactive_power_error = max_reactive_power_error
 
         self._admittance_matrix = system.admittance_matrix()
-        self._estimates = None
-        self._pv_pq_estimates = None
-        self._pq_estimates = None
+        self._compute_estimates()
 
     @property
     def estimates(self):
@@ -95,15 +93,15 @@ class PowerFlowSolver:
 
         The following steps are performed:
 
-            1. Compute bus power estimates using the explicit power equations.
-            2. Compute the Jacobian for the estimated system.
-            3. Execute the Newton-Raphson method to obtain a set of voltage magnitude and phase angle corrections.
-            4. Apply the corrections to each bus.
+            1. Compute the Jacobian for the estimated system.
+            2. Execute the Newton-Raphson method to obtain a set of voltage magnitude and phase angle corrections.
+            3. Apply the corrections to each bus.
+            4. Compute bus power estimates using the explicit power equations.
         """
-        self._compute_estimates()
         jacobian = self._jacobian()
         corrections = self._compute_corrections(jacobian)
         self._apply_corrections(corrections)
+        self._compute_estimates()
 
     def _compute_estimates(self):
         """Computes power injection estimates for each bus and splits out PV/PQ and PQ buses."""

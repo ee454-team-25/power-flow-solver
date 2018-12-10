@@ -142,7 +142,7 @@ class TestPowerFlowSolver(unittest.TestCase):
         solver = TestPowerFlowSolver.build_solver('data/Sample-Powell-3.1.xlsx', 0.0001, 0.0001)
         self.assertFalse(solver.has_converged())
 
-        for _ in range(0, 3):
+        for _ in range(0, 2):
             solver.step()
             self.assertFalse(solver.has_converged())
 
