@@ -85,7 +85,7 @@ def power_injection_report(estimates, power_base, max_active_power_error, max_re
         max_active_power_error: The maximum allowed active power error in MW.
         max_reactive_power_error: The maximum allowed reactive power error in Mvar.
     """
-    headers = ['Bus', 'Active Power Injection (MW)', 'Reactive Power Injection (Mvar)']
+    headers = ['Bus', 'Power Injection (MW)', 'Power Injection (Mvar)']
     table = []
     for estimate in estimates.values():
         if estimate.bus_type == power_flow_solver.BusType.PQ:

@@ -73,7 +73,7 @@ class PowerFlowSolver:
             True if the power injection estimates at each bus are equal to the actual power injection (within some
             allowable margin), false otherwise.
         """
-        max_dp = numpy.max([numpy.abs(i.active_power_error) for i in self._pq_estimates.values()])
+        max_dp = numpy.max([numpy.abs(i.active_power_error) for i in self._pv_pq_estimates.values()])
         max_dq = numpy.max([numpy.abs(i.reactive_power_error) for i in self._pq_estimates.values()])
         return max_dp <= self._max_active_power_error and max_dq <= self._max_reactive_power_error
 
