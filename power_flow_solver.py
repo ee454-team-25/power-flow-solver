@@ -300,13 +300,12 @@ class PowerFlowSolver:
             corrections: A list of voltage phase angle and magnitude corrections.
         """
         angle_corrections = corrections[0:len(self._pv_pq_estimates)]
-        magnitude_corrections = corrections[len(self._pv_pq_estimates):]
-
         for c, e in zip(angle_corrections, self._pv_pq_estimates.values()):
             magnitude = numpy.abs(e.bus.voltage)
             angle = numpy.angle(e.bus.voltage) + c
             e.bus.voltage = magnitude * numpy.exp(1j * angle)
 
+        magnitude_corrections = corrections[len(self._pv_pq_estimates):]
         for c, e in zip(magnitude_corrections, self._pq_estimates.values()):
             magnitude = numpy.abs(e.bus.voltage) + c
             angle = numpy.angle(e.bus.voltage)
