@@ -117,13 +117,13 @@ def main():
 
     # Iterate towards a solution.
     iteration = 1
+    print(power_system_reporter.largest_power_mismatch_report(iteration, solver.estimates, args.power_base))
     while not solver.has_converged():
-        print(power_system_reporter.largest_power_mismatch_report(solver.estimates, args.power_base, iteration))
         solver.step()
+        print(power_system_reporter.largest_power_mismatch_report(iteration, solver.estimates, args.power_base))
         iteration += 1
 
     # Produce system reports.
-    print(power_system_reporter.largest_power_mismatch_report(solver.estimates, args.power_base, iteration))
     print(power_system_reporter.bus_voltage_report(system, args.min_operating_voltage, args.max_operating_voltage))
     print(power_system_reporter.power_injection_report(
         solver.estimates, args.power_base, args.max_active_power_error, args.max_reactive_power_error))

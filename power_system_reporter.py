@@ -52,13 +52,13 @@ def line_power_report(system, power_base):
     return tabulate.tabulate(table, headers=headers, floatfmt=TABULATE_FLOAT_FMT)
 
 
-def largest_power_mismatch_report(estimates, power_base, iteration):
+def largest_power_mismatch_report(iteration, estimates, power_base):
     """Reports the largest active and reactive power mismatches for a set of estimates.
 
     Args:
+        iteration: The current iteration of the power flow solver.
         estimates: A set of bus power estimates.
         power_base: The power base in MVA.
-        iteration: The current iteration of the power flow solver.
     """
     # Find the maximum active power error.
     pv_pq_estimates = [i for i in estimates.values() if i.bus_type != power_flow_solver.BusType.SWING]
@@ -77,7 +77,7 @@ def largest_power_mismatch_report(estimates, power_base, iteration):
 
 
 def power_injection_report(estimates, power_base, max_active_power_error, max_reactive_power_error):
-    """Reports the active and reactive power injection from each generator and synchronous condenser.
+    """Reports the active and reactive power generation from each generator and synchronous condenser.
 
     Args:
         estimates: A dict mapping bus numbers to estimates of its active power injection.
@@ -85,7 +85,7 @@ def power_injection_report(estimates, power_base, max_active_power_error, max_re
         max_active_power_error: The maximum allowed active power error in MW.
         max_reactive_power_error: The maximum allowed reactive power error in Mvar.
     """
-    headers = ['Bus', 'Power Injection (MW)', 'Power Injection (Mvar)']
+    headers = ['Bus', 'Power Generation (MW)', 'Power Generation (Mvar)']
     table = []
     for estimate in estimates.values():
         if estimate.bus_type == power_flow_solver.BusType.PQ:
