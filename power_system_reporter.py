@@ -76,7 +76,7 @@ def largest_power_mismatch_report(iteration, estimates, power_base):
         iteration, max_p_error, max_p_error_estimate.bus.number, max_q_error, max_q_error_estimate.bus.number)
 
 
-def power_injection_report(estimates, power_base, max_active_power_error, max_reactive_power_error):
+def power_generation_report(estimates, power_base, max_active_power_error, max_reactive_power_error):
     """Reports the active and reactive power generation from each generator and synchronous condenser.
 
     Args:
