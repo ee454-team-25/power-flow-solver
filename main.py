@@ -12,13 +12,13 @@ The input file is expected to have two worksheets: one for bus data, and the oth
 worksheet names are expected to be 'Bus data' and 'Line data,' but these names may be overridden at the command line.
 
 Bus data: The bus data worksheet should contain load and generation data for each bus in the system. Each bus is fully
-specified by four variables: real power delivered, reactive power delivered, voltage, and phase angle. At least two of
+specified by four variables: real power injected, reactive power injected, voltage, and phase angle. At least two of
 these variables must be specified for each bus. The worksheet is expected to have the following structure:
 
     1. Bus number
     2. Real power consumed (MW)
     3. Reactive power consumed (Mvar)
-    4. Real power delivered (MW)
+    4. Real power generated (MW)
     5. Voltage (pu)
 
 Line data: The line data worksheet should contain parameters for each transmission line and transformer in the system.
@@ -34,7 +34,7 @@ have the following structure:
 
 Program arguments: In addition to bus and line data, power flow analysis requires several parameters to be specified:
 
-    1. Swing bus: A particular bus should be selected as the swing bus. The power consumption at this node is set to
+    1. Swing bus: A particular bus should be selected as the swing bus. The power injection at this node is set to
        balance all power consumption and generation in the system. By default, the first bus is selected.
 
     2. Power base: The calculations executed during analysis assume that system data is represented in per-unit

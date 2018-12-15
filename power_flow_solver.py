@@ -110,7 +110,7 @@ class PowerFlowSolver:
         if bus.number == self._swing_bus_number:
             return BusType.SWING
 
-        if bus.active_power_injected:
+        if bus.active_power_generated:
             return BusType.PV
 
         if bus.active_power_consumed or bus.reactive_power_consumed:
@@ -143,7 +143,7 @@ class PowerFlowSolver:
                 p += v_k * v_i * (g_ki * numpy.cos(theta_ki) + b_ki * numpy.sin(theta_ki))
                 q += v_k * v_i * (g_ki * numpy.sin(theta_ki) - b_ki * numpy.cos(theta_ki))
 
-            p_error = src.active_power_injected - src.active_power_consumed - p
+            p_error = src.active_power_generated - src.active_power_consumed - p
             q_error = -src.reactive_power_consumed - q
             estimates[src.number] = _BusEstimate(src, bus_type, p, q, p_error, q_error)
 
@@ -270,7 +270,7 @@ class PowerFlowSolver:
         return j22
 
     def _compute_corrections(self, jacobian):
-        """Compute corrective factors to apply to voltage phase angles and magnitudes.
+        """Computes corrective factors to apply to voltage phase angles and magnitudes.
 
         This method executes an iteration of the Newton-Raphson method. The state vector is given from the list of
         active and reactive power injection mismatches, and the corrective factors are computed by multiplying the

@@ -31,10 +31,10 @@ Line = collections.namedtuple('Line',
 #     number: The bus number.
 #     active_power_consumed: The per-unit active power consumed at this bus.
 #     reactive_power_consumed: The per-unit reactive power consumed at this bus.
-#     active_power_injected: The per-unit active power injected at this bus.
+#     active_power_generated: The per-unit active power generated at this bus.
 #     voltage: The per-unit voltage at this bus.
 Bus = namedlist.namedlist('Bus',
-                          ['number', 'active_power_consumed', 'reactive_power_consumed', 'active_power_injected',
+                          ['number', 'active_power_consumed', 'reactive_power_consumed', 'active_power_generated',
                            'voltage'])
 
 

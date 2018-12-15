@@ -8,7 +8,7 @@ The bus data worksheet is expected to have a header row and data in the followin
     1. Bus number
     2. Active power consumed in MW
     3. Reactive power consumed in Mvar
-    4. Active power injected in MW
+    4. Active power generated in MW
     5. Voltage at the bus in per-unit
 
 The line data worksheet is expected to have a header row and data in the following format:
