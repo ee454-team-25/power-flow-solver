@@ -1,6 +1,6 @@
 # EE 454 Final Project
 
-## Power System Analysis
+## Power Flow Solver
 
 ### Overview
 
