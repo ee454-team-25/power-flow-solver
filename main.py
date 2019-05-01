@@ -1,6 +1,6 @@
 """A program that analyzes and solves a power flow.
 
-This program reads bus and line data from an Excel file and executes a power flow analysis to determine bus voltages. A
+This program reads bus and line data from an Excel file and executes a power analysis to determine bus voltages. A
 report about the system is then generated containing the following information:
 
     1. The voltage (magnitude and angle) at each bus in the system.
@@ -22,8 +22,8 @@ these variables must be specified for each bus. The worksheet is expected to hav
     5. Voltage (pu)
 
 Line data: The line data worksheet should contain parameters for each transmission line and transformer in the system.
-In this analysis program, shunt conductances are assumed to be negligible and are ignored. The worksheet is expected to
-have the following structure:
+In this program, shunt conductances are assumed to be negligible and are ignored. The worksheet is expected to have the
+following structure:
 
     1. Source bus
     2. Destination bus

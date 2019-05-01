@@ -7,44 +7,36 @@ This model is simplified to allow only one load or generator to be attached at e
 power they consume, while generators are specified by the active power they inject and their controlled voltage.
 """
 
-import collections
-import namedlist
+import dataclasses
 import numpy
-
-# A power line connecting two buses.
-#
-# Args:
-#     source: The source bus number.
-#     destination: The destination bus number.
-#     distributed_impedance: The per-unit distributed impedance of the power line.
-#     shunt_admittance: The per-unit shunt admittance of the power line.
-#     max_power: The maximum power rating of the line in MVA.
-Line = collections.namedtuple('Line',
-                              ['source', 'destination', 'distributed_impedance', 'shunt_admittance', 'max_power'])
-
-# A bus in the power system.
-#
-# This object is a namedlist instead of a namedtuple because the voltage field is mutable and changes at each iteration
-# of the load flow analysis.
-#
-# Args:
-#     number: The bus number.
-#     active_power_consumed: The per-unit active power consumed at this bus.
-#     reactive_power_consumed: The per-unit reactive power consumed at this bus.
-#     active_power_generated: The per-unit active power generated at this bus.
-#     voltage: The per-unit voltage at this bus.
-Bus = namedlist.namedlist('Bus',
-                          ['number', 'active_power_consumed', 'reactive_power_consumed', 'active_power_generated',
-                           'voltage'])
+import typing
 
 
-class PowerSystem(collections.namedtuple('PowerSystem', ['buses', 'lines'])):
-    """An object representing a power system.
+@dataclasses.dataclass()
+class Bus:
+    """A bus in the power system."""
+    number: int
+    active_power_consumed: float
+    reactive_power_consumed: float
+    active_power_generated: float
+    voltage: complex
 
-    Args:
-        buses: A list of buses in the system.
-        lines: A list of lines in the system.
-    """
+
+@dataclasses.dataclass(frozen=True)
+class Line:
+    """A power line connecting two buses."""
+    source: int
+    destination: int
+    distributed_impedance: complex
+    shunt_admittance: complex
+    max_power: typing.Optional[float]
+
+
+@dataclasses.dataclass(frozen=True)
+class PowerSystem:
+    """An object representing a power system."""
+    buses: typing.List[Bus]
+    lines: typing.List[Line]
 
     def admittance_matrix(self):
         """Computes the admittance matrix for the system.

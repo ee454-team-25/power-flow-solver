@@ -10,25 +10,14 @@ directly modified and updated at each iteration.
         solver.step()
 """
 
-import collections
+import dataclasses
 import enum
 import numpy
+import power_system
 
 DEFAULT_SWING_BUS_NUMBER = 1
 DEFAULT_MAX_ACTIVE_POWER_ERROR = 0.001
 DEFAULT_MAX_REACTIVE_POWER_ERROR = 0.001
-
-# A bus estimate object. This object contains estimated power values.
-#
-# Args:
-#     bus: A reference to the actual bus being estimated.
-#     bus_type: The bus type.
-#     active_power: The estimated active power injection.
-#     reactive_power: The estimated reactive power injection.
-#     active_power_error: The difference between the estimated and actual active power injection.
-#     reactive_power_error: The difference between the estimated and actual reactive power injection.
-_BusEstimate = collections.namedtuple(
-    '_BusEstimate', ['bus', 'bus_type', 'active_power', 'reactive_power', 'active_power_error', 'reactive_power_error'])
 
 
 class BusType(enum.Enum):
@@ -37,6 +26,17 @@ class BusType(enum.Enum):
     SWING = 1
     PV = 2
     PQ = 3
+
+
+@dataclasses.dataclass(frozen=True)
+class _BusEstimate:
+    """A bus estimate object. This object contains estimated power values."""
+    bus: power_system.Bus
+    bus_type: BusType
+    active_power: float
+    reactive_power: float
+    active_power_error: float
+    reactive_power_error: float
 
 
 class PowerFlowSolver:

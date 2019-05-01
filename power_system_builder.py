@@ -53,7 +53,7 @@ class ExcelPowerSystemBuilder:
     def build_buses(self):
         """Builds a list of buses in the system."""
         result = []
-        for row in self._bus_data_worksheet.iter_rows(row_offset=1):
+        for row in self._bus_data_worksheet.iter_rows(min_row=2):
             bus_number = row[0].value
             if not bus_number:
                 break
@@ -69,7 +69,7 @@ class ExcelPowerSystemBuilder:
     def build_lines(self):
         """Builds a list of lines in the system."""
         result = []
-        for row in self._line_data_worksheet.iter_rows(row_offset=1):
+        for row in self._line_data_worksheet.iter_rows(min_row=2):
             source_bus_number = row[0].value
             destination_bus_number = row[1].value
             if not source_bus_number or not destination_bus_number:
