@@ -1,24 +1,9 @@
-"""A module that builds power system objects from Excel files.
+"""A module that builds power system objects from input files.
 
-The input is expected to be a spreadsheet with two worksheets: one specifying buses and another specifying lines. By
-default the worksheets are expected to be called "Bus data" and "Line data," but these values may be overridden.
+Currently supported file formats:
 
-The bus data worksheet is expected to have a header row and data in the following format:
-
-    1. Bus number
-    2. Active power consumed in MW
-    3. Reactive power consumed in Mvar
-    4. Active power generated in MW
-    5. Voltage at the bus in per-unit
-
-The line data worksheet is expected to have a header row and data in the following format:
-
-    1. The source bus number
-    2. The destination bus number
-    3. The distributed resistance in per-unit
-    4. The distributed reactance in per-unit
-    5. The shunt susceptance in per-unit
-    6. The maximum power rating of the line in MVA
+    1. Excel
+    2. PowerViz
 """
 
 import openpyxl
@@ -31,7 +16,42 @@ DEFAULT_LINE_DATA_WORKSHEET_NAME = 'Line data'
 DEFAULT_POWER_BASE = 100
 
 
-class ExcelPowerSystemBuilder:
+class PowerSystemBuilder:
+    def build_buses(self):
+        raise NotImplementedError()
+
+    def build_lines(self):
+        raise NotImplementedError()
+
+    def build_system(self):
+        """Builds a power system."""
+        return power_system.PowerSystem(self.build_buses(), self.build_lines())
+
+
+class ExcelPowerSystemBuilder(PowerSystemBuilder):
+    """A power system builder that reads data from Excel files.
+
+    The input is expected to be a spreadsheet with two worksheets: one specifying buses and another specifying lines.
+    By default the worksheets are expected to be called "Bus data" and "Line data," but these values may be overridden.
+
+    The bus data worksheet is expected to have a header row and data in the following format:
+
+        1. Bus number
+        2. Active power consumed in MW
+        3. Reactive power consumed in Mvar
+        4. Active power generated in MW
+        5. Voltage at the bus in per-unit
+
+    The line data worksheet is expected to have a header row and data in the following format:
+
+        1. The source bus number
+        2. The destination bus number
+        3. The distributed resistance in per-unit
+        4. The distributed reactance in per-unit
+        5. The shunt susceptance in per-unit
+        6. The maximum power rating of the line in MVA
+    """
+
     def __init__(self, filename, bus_data_worksheet_name=DEFAULT_BUS_DATA_WORKSHEET_NAME,
                  line_data_worksheet_name=DEFAULT_LINE_DATA_WORKSHEET_NAME, start_voltage=FLAT_START_VOLTAGE,
                  power_base=DEFAULT_POWER_BASE):
@@ -86,6 +106,142 @@ class ExcelPowerSystemBuilder:
 
         return result
 
-    def build_system(self):
-        """Builds a power system."""
-        return power_system.PowerSystem(self.build_buses(), self.build_lines())
+
+class PowerVizPowerSystemBuilder(PowerSystemBuilder):
+    """A power system builder that reads data from PowerViz files.
+
+    The power base is given in the "Misc" section. Bus and line data are encoded in tab-delimited plaintext fields.
+    Rows are delimited by "Bus/End Bus" and "Line/End Line" markers, respectively. Each data set contains a row of
+    column headers.
+
+    Bus data format:
+
+        Column | Description      | Notes
+        -------+------------------+---------------------------------------------
+          1    | Number           |
+          2    | Name             |
+          3    | Area Number      | This value is often the area voltage in kV.
+          4    | Type Code        | S = slack, CT = ?, L = load
+          5    | VmagSolve        |
+          6    | VangleSolve      |
+          7    | PLoad            |
+          8    | QLoad            |
+          9    | PGen             |
+         10    | QGen             |
+         11    | VoltTarget       |
+         12    | QGenMax          |
+         13    | QGenMin          |
+         14    | ShuntConductance |
+         15    | ShuntSusceptance |
+         16    | CoordX           |
+         17    | CoordY           |
+         18    | Notes            |
+
+    Line data format:
+
+        Column | Description      | Notes
+        -------+------------------+------
+          1    | Number           |
+          2    | FromBusNo        |
+          3    | ToBusNo          |
+          4    | TapLocation      |
+          5    | SectionR         |
+          6    | SectionX         |
+          7    | ShuntSusceptance |
+          8    | RateValueNormal  |
+          9    | RateValueEmerg   |
+          10   | TapRatio         |
+          11   | Notes            |
+    """
+
+    def __init__(self, filename, start_voltage):
+        """Initializes the power system builder.
+
+        Args:
+            filename: The PowerViz filename.
+            start_voltage: The start voltage for PQ buses.
+        """
+        self._filename = filename
+        self._start_voltage = start_voltage
+        self._power_base = self._read_power_base()
+
+    def _read_power_base(self):
+        """Reads the power base from the file."""
+        f = open(self._filename, 'r')
+        for line in f:
+            line = line.strip()
+            if line == 'Misc':
+                break
+
+        f.readline()  # Skip column headers.
+        result = 0
+        for line in f:
+            line = line.strip()
+            if line == 'End Misc':
+                break
+
+            parts = line.split()
+            result = float(parts[0])
+            break
+
+        f.close()
+        return result
+
+    def build_buses(self):
+        """Builds a list of buses in the system."""
+        f = open(self._filename, 'r')
+        for line in f:
+            line = line.strip()
+            if line == 'Bus':
+                break
+
+        f.readline()  # Skip column headers.
+        result = []
+        for line in f:
+            line = line.strip()
+            if line == 'End Bus':
+                break
+
+            parts = line.split()
+            number = int(parts[0])
+            p_load = float(parts[6]) / self._power_base
+            q_load = float(parts[7]) / self._power_base
+            p_gen = float(parts[8]) / self._power_base
+            voltage = float(parts[10])
+            if voltage == 0:
+                voltage = self._start_voltage
+
+            result.append(power_system.Bus(number, p_load, q_load, p_gen, voltage))
+
+        f.close()
+        return result
+
+    def build_lines(self):
+        """Builds a list of lines in the system."""
+        f = open(self._filename, 'r')
+        for line in f:
+            line = line.strip()
+            if line == 'Line':
+                break
+
+        f.readline()  # Skip column headers.
+        result = []
+        for line in f:
+            line = line.strip()
+            if line == 'End Line':
+                break
+
+            parts = line.split()
+
+            source_bus_number = int(parts[1])
+            destination_bus_number = int(parts[2])
+            r_distributed = float(parts[4])
+            x_distributed = float(parts[5])
+            z_distributed = r_distributed + 1j * x_distributed
+            y_shunt = 1j * float(parts[6])
+            max_power = float(parts[7])
+            result.append(
+                power_system.Line(source_bus_number, destination_bus_number, z_distributed, y_shunt, max_power))
+
+        f.close()
+        return result

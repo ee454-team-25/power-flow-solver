@@ -46,8 +46,8 @@ class PowerSystem:
         """
         matrix = numpy.zeros((len(self.buses), len(self.buses))) * 1j
         for line in self.lines:
-            src = line.source - 1
-            dst = line.destination - 1
+            src = [index for index, bus in enumerate(self.buses) if bus.number == line.source][0]
+            dst = [index for index, bus in enumerate(self.buses) if bus.number == line.destination][0]
 
             y_distributed = 1 / line.distributed_impedance
             y_shunt = line.shunt_admittance

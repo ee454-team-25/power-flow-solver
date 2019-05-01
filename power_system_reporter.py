@@ -2,6 +2,7 @@
 
 import numpy
 import power_flow_solver
+import power_system
 import tabulate
 
 TABULATE_FLOAT_FMT = '.4f'
@@ -36,8 +37,8 @@ def line_power_report(system, power_base):
                'Receiving Power (Mvar)', 'Receiving Power (MVA)', 'Exceeds Rating']
     table = []
     for line in system.lines:
-        src = system.buses[line.source - 1]
-        dst = system.buses[line.destination - 1]
+        src = next(filter(lambda bus: bus.number == line.source, system.buses))
+        dst = next(filter(lambda bus: bus.number == line.destination, system.buses))
 
         i_src = (src.voltage - dst.voltage) / line.distributed_impedance + src.voltage * line.shunt_admittance
         i_dst = (dst.voltage - src.voltage) / line.distributed_impedance + dst.voltage * line.shunt_admittance

@@ -125,17 +125,17 @@ class PowerFlowSolver:
             A dict mapping a bus number to its power injection estimate.
         """
         estimates = {}
-        for src in self._system.buses:
+        for index_src, src in enumerate(self._system.buses):
             bus_type = self._bus_type(src)
             p = 0
             q = 0
             v_k = numpy.abs(src.voltage)
             theta_k = numpy.angle(src.voltage)
 
-            for dst in self._system.buses:
+            for index_dst, dst in enumerate(self._system.buses):
                 v_i = numpy.abs(dst.voltage)
                 theta_i = numpy.angle(dst.voltage)
-                y_ki = self._admittance_matrix[src.number - 1][dst.number - 1]
+                y_ki = self._admittance_matrix[index_src][index_dst]
                 g_ki = y_ki.real
                 b_ki = y_ki.imag
                 theta_ki = theta_k - theta_i
@@ -164,14 +164,14 @@ class PowerFlowSolver:
         j11 = numpy.zeros((len(self._pv_pq_estimates), len(self._pv_pq_estimates)))
         for row, src_number in enumerate(self._pv_pq_estimates):
             src = self._pv_pq_estimates[src_number]
-            k = src_number - 1
+            k = [index for index, bus in enumerate(self._system.buses) if bus.number == src.bus.number][0]
             v_k = numpy.abs(src.bus.voltage)
             theta_k = numpy.angle(src.bus.voltage)
             q_k = src.reactive_power
 
             for col, dst_number in enumerate(self._pv_pq_estimates):
                 dst = self._pv_pq_estimates[dst_number]
-                j = dst.bus.number - 1
+                j = [index for index, bus in enumerate(self._system.buses) if bus.number == dst.bus.number][0]
                 v_j = numpy.abs(dst.bus.voltage)
                 theta_j = numpy.angle(dst.bus.voltage)
                 theta_kj = theta_k - theta_j
@@ -192,14 +192,14 @@ class PowerFlowSolver:
         j12 = numpy.zeros((len(self._pv_pq_estimates), len(self._pq_estimates)))
         for row, src_number in enumerate(self._pv_pq_estimates):
             src = self._pv_pq_estimates[src_number]
-            k = src_number - 1
+            k = [index for index, bus in enumerate(self._system.buses) if bus.number == src.bus.number][0]
             v_k = numpy.abs(src.bus.voltage)
             theta_k = numpy.angle(src.bus.voltage)
             p_k = src.active_power
 
             for col, dst_number in enumerate(self._pq_estimates):
                 dst = self._pq_estimates[dst_number]
-                j = dst.bus.number - 1
+                j = [index for index, bus in enumerate(self._system.buses) if bus.number == dst.bus.number][0]
                 theta_j = numpy.angle(dst.bus.voltage)
                 theta_kj = theta_k - theta_j
 
@@ -219,14 +219,14 @@ class PowerFlowSolver:
         j21 = numpy.zeros((len(self._pq_estimates), len(self._pv_pq_estimates)))
         for row, src_number in enumerate(self._pq_estimates):
             src = self._pq_estimates[src_number]
-            k = src_number - 1
+            k = [index for index, bus in enumerate(self._system.buses) if bus.number == src.bus.number][0]
             v_k = numpy.abs(src.bus.voltage)
             theta_k = numpy.angle(src.bus.voltage)
             p_k = src.active_power
 
             for col, dst_number in enumerate(self._pv_pq_estimates):
                 dst = self._pv_pq_estimates[dst_number]
-                j = dst.bus.number - 1
+                j = [index for index, bus in enumerate(self._system.buses) if bus.number == dst.bus.number][0]
                 v_j = numpy.abs(dst.bus.voltage)
                 theta_j = numpy.angle(dst.bus.voltage)
                 theta_kj = theta_k - theta_j
@@ -247,14 +247,14 @@ class PowerFlowSolver:
         j22 = numpy.zeros((len(self._pq_estimates), len(self._pq_estimates)))
         for row, src_number in enumerate(self._pq_estimates):
             src = self._pq_estimates[src_number]
-            k = src_number - 1
+            k = [index for index, bus in enumerate(self._system.buses) if bus.number == src.bus.number][0]
             v_k = numpy.abs(src.bus.voltage)
             theta_k = numpy.angle(src.bus.voltage)
             q_k = src.reactive_power
 
             for col, dst_number in enumerate(self._pq_estimates):
                 dst = self._pq_estimates[dst_number]
-                j = dst.bus.number - 1
+                j = [index for index, bus in enumerate(self._system.buses) if bus.number == dst.bus.number][0]
                 theta_j = numpy.angle(dst.bus.voltage)
                 theta_kj = theta_k - theta_j
 
