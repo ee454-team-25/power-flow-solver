@@ -167,7 +167,7 @@ class TestPowerFlowSolver(unittest.TestCase):
         expected = [[3.5423, -0.9615, 0],
                     [-0.9615, 2.2019, -0.7692],
                     [0, -0.7692, 1.1462],
-                    [0.7846, -0.4904, -0.3923]]
+                    [-0.7846, -0.4904, -0.3923]]
 
         actual = solver._jacobian_12()
         numpy.testing.assert_array_almost_equal(actual, expected, 4)
